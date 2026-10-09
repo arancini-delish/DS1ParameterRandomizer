@@ -34,3 +34,9 @@ def test_newer_versions_are_refused():
 def test_builtins_cover_ring_presets():
     assert set(BUILTIN) == {"Easy", "Standard", "Hard", "Misery"}
     assert json.loads(BUILTIN["Hard"].to_json())["rings"]["tier_weights"] == [0.85, 0.1, 0.04, 0.01]
+
+
+def test_projectile_weights_round_trip_as_tuples():
+    preset = Preset.from_share_string(BUILTIN["Misery"].to_share_string())
+    assert preset == BUILTIN["Misery"]
+    assert isinstance(preset.projectiles.environment_weights, tuple)

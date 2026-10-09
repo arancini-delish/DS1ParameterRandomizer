@@ -54,3 +54,15 @@ def test_spells_tab(window):
     window.spells_tab.status_chance.setValue(40)
     assert window.preset_combo.currentText() == CUSTOM
     assert window.current_preset().spells.status_chance == 0.4
+
+
+def test_projectiles_tab(window):
+    window.preset_combo.setCurrentText("Hard")
+    tab = window.projectiles_tab
+    assert tab.distributions["player"].values() == BUILTIN["Hard"].projectiles.player_weights
+    assert tab.distributions["enemy"].values() == BUILTIN["Hard"].projectiles.enemy_weights
+    tab.owner_boxes["environment"].setChecked(False)
+    tab.cross_enemy.setChecked(True)
+    assert window.preset_combo.currentText() == CUSTOM
+    settings = window.current_preset().projectiles
+    assert settings.environment is False and settings.cross_enemy is True

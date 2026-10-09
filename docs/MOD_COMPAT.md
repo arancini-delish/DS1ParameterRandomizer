@@ -35,7 +35,11 @@ ranges; only the combined GameParam was captured.
    spell/projectile/ring params, but enemy-related usage must come from the installed files.
 6. **FFX availability changes.** The enemy randomizer rewrites the common effects binder (to make enemy effects load
    anywhere). Projectile visual swaps (AUDIT 18) must check the installed binder, not assume vanilla residency.
-7. **EMEVD robustness.** The enemy randomizer's EMEVDs pass more RunEvent arguments than soulstruct's parsed format
+7. **The combined GameParam has repeated SpEffect row IDs with different contents**: 7240, 7280, 7320 and 7360 (in
+   the fog gate's scaling range) each appear twice. soulstruct keeps only the first of each when re-serializing, so
+   `GameParams.save` refuses to re-serialize SpEffectParam on this install, and any SpEffect edit (spell copies,
+   ring effects) would be blocked or would change the other mod's behaviour.
+8. **EMEVD robustness.** The enemy randomizer's EMEVDs pass more RunEvent arguments than soulstruct's parsed format
    holds; `ds1rand/graph/emevd.py` now packs the extras as 32-bit words.
 
 ## Proposed design (replaces "refuse modified installs")
@@ -53,6 +57,9 @@ ranges; only the combined GameParam was captured.
 - **Write field-level patches**, not whole rows: randomizers set fields; the writer applies only those fields to the
   base rows, and records them (old value, new value) in the marker. Randomizers compute from base values, never from
   disk values, so nothing compounds.
+- **Byte-level param writing for params with repeated IDs** (needed now for SpEffectParam): patch fields in the
+  original row data and insert new rows into the original binary (rows sorted by ID, duplicates kept in place), instead
+  of re-serializing through soulstruct.
 - **Conflicts**: a field we want to patch that another mod already changed from vanilla (e.g. CharaInitParam starting
   equipment) keeps the other mod's value by default and is reported; the allocator then treats that reference as
   fixed.

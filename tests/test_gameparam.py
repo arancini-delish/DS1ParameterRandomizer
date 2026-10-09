@@ -6,8 +6,8 @@ from ds1rand.io.gameparam import DuplicateRowsLostError, GameParams
 
 
 @pytest.fixture
-def params(install) -> GameParams:
-    return GameParams.from_path(install.gameparam)
+def params(vanilla_gameparam) -> GameParams:
+    return GameParams.from_path(vanilla_gameparam)
 
 
 def _row_dicts(param):
@@ -43,21 +43,21 @@ def test_soulstruct_round_trip_preserves_rows(params):
         assert _row_dicts(reread) == _row_dicts(param), name
 
 
-def test_unchanged_save_keeps_original_bytes(params, install, tmp_path):
+def test_unchanged_save_keeps_original_bytes(params, vanilla_gameparam, tmp_path):
     out = tmp_path / "GameParam.parambnd.dcx"
     assert params.save(out) == []
-    original = {e.stem: bytes(e) for e in GameParams.from_path(install.gameparam)._bnd.entries}
+    original = {e.stem: bytes(e) for e in GameParams.from_path(vanilla_gameparam)._bnd.entries}
     saved = {e.stem: bytes(e) for e in GameParams.from_path(out)._bnd.entries}
     assert saved == original
 
 
-def test_edit_only_reserializes_changed_param(params, install, tmp_path):
+def test_edit_only_reserializes_changed_param(params, vanilla_gameparam, tmp_path):
     bullet_id = next(row_id for row_id, row in params["Bullet"].items() if row["life"] > 0)
     params.row("Bullet", bullet_id)["life"] = 12.5
     out = tmp_path / "GameParam.parambnd.dcx"
     assert params.save(out) == ["Bullet"]
 
-    vanilla = GameParams.from_path(install.gameparam)
+    vanilla = GameParams.from_path(vanilla_gameparam)
     saved = GameParams.from_path(out)
     assert saved.row("Bullet", bullet_id)["life"] == 12.5
     saved.row("Bullet", bullet_id)["life"] = vanilla.row("Bullet", bullet_id)["life"]

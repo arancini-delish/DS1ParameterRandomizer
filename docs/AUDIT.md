@@ -1,0 +1,63 @@
+# Audit & Catalogue Register
+
+Tracks every audit needed before a randomization feature can ship. Status: `todo` / `wip` / `done` / `blocked`.
+Reference: https://soulsmodding.wikidot.com/param:main, `ds1paramdefs/Meta`, `ds1paramdefs/Community Row Names`.
+
+Each item needs: enumerate rows, define subtypes, list exclusions/pins, verify in-game where noted.
+
+## A. Data-format / tooling audits
+
+| # | Audit | Status | Owner | Notes / findings |
+|---|---|---|---|---|
+| 1 | soulstruct DSR param + FMG round-trip fidelity (all 50+ params, padding/bitfields). | todo | | |
+| 2 | Defs vs soulstruct-bundled paramdefs vs Meta field names — reconcile naming mismatches (e.g. `HitBulletID` casing, `Diffence` spellings). | todo | | |
+| 3 | Meta `Refs` completeness per param — list fields that are references but lack `Refs` (ThrowParam, ObjectParam, NpcThinkParam, SpEffect chain fields, Bullet `autoSearchNPCThinkID`, Goods/Weapon behaviour variation). | todo | | |
+| 4 | Enum coverage: `Enum=` on Bullet/SpEffect/NpcParam fields; build missing enums (e.g. `EmittePosType`, `followType`, `stateInfo`) from the soulsmodding wiki (`soulsmodding.wikidot.com/param:main`). | todo | | |
+| 5 | TAE event type table for DS1R (which event IDs invoke Atk/Bullet/PC behaviour/SpEffect; arg layout). | todo | | |
+| 6 | Lua bytecode constant extraction reliability across all AI luabnds. | todo | | |
+| 7 | Free row-ID ranges per param that the engine tolerates (are appended IDs loaded? any ID-range semantics e.g. SpEffect ranges, BehaviorParam ID composition). | todo | | |
+
+## B. Reference-source audits (graph edges)
+
+| # | Audit | Status | Owner | Notes / findings |
+|---|---|---|---|---|
+| 8 | All param→param refs (Meta + computed). | todo | | |
+| 9 | BehaviorParam / BehaviorParam_PC ID composition and every consumer (NPC variation, weapon variation, magic, goods, accessories with refCategory=0). | todo | | |
+| 10 | EMEVD: every instruction that takes a Bullet/SpEffect/ItemLot/ObjAct/NpcParam ID, across common + all maps. | todo | | |
+| 11 | MSB: enemies, objects, traps, collision-linked IDs; per-map enemy instance counts. | todo | | |
+| 12 | TAE: per character + c0000 behaviour invokes; spray/repeated-invoke patterns. | todo | | |
+| 13 | AI Lua: SpEffect/behaviour IDs referenced by AI (e.g. buff checks via `HasSpecialEffectId`). | todo | | |
+| 14 | EXE-hardcoded IDs (curated): status-effect SpEffects, humanity/hollow, covenant, item-use, stateInfo semantics, speffect ranges with special engine treatment. | todo | | |
+| 15 | Hit material (HitMtrlParam) SpEffects, ObjActParam, ThrowParam, KnockBackParam, LockCamParam usage. | todo | | |
+
+## C. Semantic catalogue audits (subtypes)
+
+| # | Audit | Status | Owner | Notes / findings |
+|---|---|---|---|---|
+| 16 | **SpEffect** — buckets: ring passive, weapon/armor passive, player buff, weapon buff (enchant), status buildup (poison/toxic/bleed/curse/frost-like), damage-over-time, heal/regen, enemy buff/debuff, AI state flags, area/env effects, triggers (`replaceSpEffectId`, cycle, conditionHp), stateInfo-driven specials, visual-only (SpEffectVfx). Field groups: which fields are "effect payload" vs "plumbing" (duration, target flags, effectTarget*, magParamChange/miracleParamChange). | todo | | |
+| 17 | **Bullet** — linear, lobbed (gravity), homing (followType/autoSearch), orbit/delayed (NpcThink), ground-trace chain, AOE ground spawn (EmittePosType), point-blank, spray, lingering/cloud, explode-on-hit spawner, multi-shot (numShoot/spread), shooter-buff carrier, trap bullets, invisible/utility bullets. Field groups: visuals (sfx IDs, model), motion, lifetime, hit behaviour, chaining. | todo | | |
+| 18 | **Bullet visuals (FFX residency)** — which `sfxId_*` are in common FFX vs character/map-specific FFXBNDs; player-safe pool vs enemy-only pool; spell vs non-spell visual pools. Same for sounds if referenced. | todo | | |
+| 19 | **AtkParam_Pc / AtkParam_Npc** — damage types, status payload, knockback, guard break, which are spell/projectile/melee/trap; scaling relationships with Magic/weapons. | todo | | |
+| 20 | **Magic** — school, cast animation (`refType`), subtype, slots/uses/stat req distribution, pinned utilities (Homeward, Cast Light, Repair, Darkmoon/covenant spells, Aural Decoy, Hidden Body, Fall Control?), enemy-only Magic rows if any. | todo | | |
+| 21 | **EquipParamGoods** — throwables (firebomb, knives, dung pie, alluring skull, prism stone…), consumables using bullets/SpEffects (buffs, resins); key items to pin. | todo | | |
+| 22 | **EquipParamWeapon ammo & catalysts** — arrows/bolts (ammo types), bow/crossbow association, weapons with on-hit SpEffects and passive SpEffects, catalyst/talisman spell buff fields. | todo | | |
+| 23 | **EquipParamAccessory** — ring list, refCategory per ring, key/quest rings, rings with hardcoded engine behaviour (pins), ring msg IDs. | todo | | |
+| 24 | **NpcParam** — enemy categories (regular, elite, boss, NPC/invader, summon, mimic, passive), per-enemy fields safe to modify (speeds, turn rate, poise, resistances, stamina), shared NpcParam rows across maps. | todo | | |
+| 25 | **NpcThinkParam** — sight/hearing radius & angles, battle-goal IDs, nearby-ally call, return distances; which rows are shared and which drive bosses/scripted fights. | todo | | |
+| 26 | **MoveParam** — walk/run/turn speeds per movement set; who shares them. | todo | | |
+| 27 | **Enemy & environment spells/projectiles** — which bullets each enemy can fire (via TAE+Behavior), trap bullets per map, boss-specific mechanics to pin (e.g. scripted bullets in boss arenas). | todo | | |
+| 28 | **Cost/power baselines** — vanilla power curve per spell subtype & school (damage per cast, casts, slots, stat req, cast time) and per projectile class (damage vs price/weight) — used to fit cost models. | todo | | |
+| 29 | **Message IDs** — FMG entries for every randomizable item (names, summaries, descriptions), text length limits. | todo | | |
+
+## D. Validation audits (in-game)
+
+| # | Audit | Status | Owner | Notes / findings |
+|---|---|---|---|---|
+| 30 | Sample per subtype: swapping two rows within a subtype produces working behaviour (spot-check list kept in AUDIT.md). | todo | | |
+| 31 | Appended (cloned) row IDs load and function for Bullet/Atk/SpEffect/Magic. | todo | | |
+| 32 | Online/save safety notes (offline-only recommendation). | todo | | |
+
+## In-game spot-check log
+
+| Date | Feature / subtype | Rows tested | Result | Notes |
+|---|---|---|---|---|

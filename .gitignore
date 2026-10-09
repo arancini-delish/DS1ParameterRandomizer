@@ -225,3 +225,6 @@ __marimo__/
 /params/
 /msgs/
 /WitchyBnd/
+
+# Local tool output
+/out/

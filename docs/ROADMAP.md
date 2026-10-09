@@ -42,10 +42,12 @@ tests/
 - soulstruct submodule replaced by a pinned dependency (`soulstruct==2.6.0`, Python >=3.13) in `pyproject.toml`.
 - Package skeleton `ds1rand/` created per the target layout; prototype moved to `legacy/`; game files and extraction caches git-ignored.
 
-### Phase 1 — soulstruct I/O port
-- `io/gameparam.py`: load/save `GameParam.parambnd.dcx` via soulstruct's DSR `GameParamBND`; expose rows as typed dicts keyed by field name; ID allocation helpers (append new rows).
-- `io/msg.py`: `item.msgbnd.dcx` (and `menu.msgbnd.dcx` if needed) — Accessory/Magic/Goods/Weapon name, summary, description FMGs.
-- Round-trip test: load → save unchanged → byte/row-identical; game boots.
+### Phase 1 — soulstruct I/O port (done)
+- `io/install.py`: `GameInstall` paths; `DS1R_GAME_DIR` overrides the default Steam location.
+- `io/gameparam.py`: `GameParams` over soulstruct's DSR `GameParamBND`. Fields by paramdef internal name (`row["atkId_Bullet"]`, `row_values()`), `add_row(copy_from=)`, `next_free_id()`. `save()` re-serializes only params that changed and writes untouched params as their original bytes; it refuses to re-serialize a param with vanilla duplicate row IDs (`duplicate_ids`) because soulstruct drops them.
+- `io/msg.py`: `ItemText` over `item.msgbnd.dcx`. Reads prefer the DSR patch FMG; writes update base and patch. `menu.msgbnd.dcx` not needed yet.
+- Tests (`tests/`, skip without an install): unchanged save is byte-identical per param, edits only re-serialize the edited param, row values survive soulstruct round trip, added rows persist, text writes reach base + patch.
+- Boot-tested in game with `tools/make_boot_test.py` (re-serialized params, appended row, edited base + patch text).
 
 ### Phase 2 — Vanilla baseline
 - `tools/build_baseline.py`: from a clean DSR install, dump every param's rows + relevant FMGs into `data/baseline/` with a manifest (game version, file SHA256, per-row hashes).

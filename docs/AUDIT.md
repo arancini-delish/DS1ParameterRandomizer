@@ -9,7 +9,7 @@ Each item needs: enumerate rows, define subtypes, list exclusions/pins, verify i
 
 | # | Audit | Status | Owner | Notes / findings |
 |---|---|---|---|---|
-| 1 | soulstruct DSR param + FMG round-trip fidelity (all 50+ params, padding/bitfields). | todo | | |
+| 1 | soulstruct DSR param + FMG round-trip fidelity (all 50+ params, padding/bitfields). | done | | 41 params load. soulstruct output is not byte-identical to vanilla (most params differ by a few bytes, likely name-table layout) but row values round-trip for all 41 params. Vanilla has repeated row IDs that soulstruct drops: default_AIStandardInfoBank 8080, 8090; ObjectParam 4000, 4100, 4112, 9499, 9500, 9509; SpEffectVfxParam 1; LockCamParam 200. `GameParams.save` keeps untouched params as original bytes and refuses to re-serialize these four. Game boots with soulstruct-written GameParam and item.msgbnd (2026-10-09). |
 | 2 | Defs vs soulstruct-bundled paramdefs vs Meta field names — reconcile naming mismatches (e.g. `HitBulletID` casing, `Diffence` spellings). | todo | | |
 | 3 | Meta `Refs` completeness per param — list fields that are references but lack `Refs` (ThrowParam, ObjectParam, NpcThinkParam, SpEffect chain fields, Bullet `autoSearchNPCThinkID`, Goods/Weapon behaviour variation). | todo | | |
 | 4 | Enum coverage: `Enum=` on Bullet/SpEffect/NpcParam fields; build missing enums (e.g. `EmittePosType`, `followType`, `stateInfo`) from the soulsmodding wiki (`soulsmodding.wikidot.com/param:main`). | todo | | |
@@ -54,10 +54,11 @@ Each item needs: enumerate rows, define subtypes, list exclusions/pins, verify i
 | # | Audit | Status | Owner | Notes / findings |
 |---|---|---|---|---|
 | 30 | Sample per subtype: swapping two rows within a subtype produces working behaviour (spot-check list kept in AUDIT.md). | todo | | |
-| 31 | Appended (cloned) row IDs load and function for Bullet/Atk/SpEffect/Magic. | todo | | |
+| 31 | Appended (cloned) row IDs load and function for Bullet/Atk/SpEffect/Magic. | wip | | Appended Bullet 900000 (unused copy) loads without breaking boot. Still to check: appended rows actually used in-game, and Atk/SpEffect/Magic. |
 | 32 | Online/save safety notes (offline-only recommendation). | todo | | |
 
 ## In-game spot-check log
 
 | Date | Feature / subtype | Rows tested | Result | Notes |
 |---|---|---|---|---|
+| 2026-10-09 | Phase 1 I/O boot test (`tools/make_boot_test.py`) | All EquipParamWeapon weights, appended Bullet 900000, Darksign + Estus names/summary | Pass | Game boots, all edits visible. |

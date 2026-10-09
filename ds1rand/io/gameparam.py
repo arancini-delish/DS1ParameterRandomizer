@@ -92,6 +92,9 @@ class GameParams:
         param[row_id] = row
         return row
 
+    def remove_row(self, name: str, row_id: int) -> None:
+        self._bnd.params[name].pop(row_id)
+
     def next_free_id(self, name: str, start: int, end: int | None = None) -> int:
         """Lowest unused row ID in `[start, end)`, unbounded above if `end` is None."""
         rows = self._bnd.params[name].rows

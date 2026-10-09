@@ -1,0 +1,175 @@
+{
+  "format": 1,
+  "soulstruct": "unknown",
+  "sources": {
+    "GameParam.parambnd.dcx": "cc4a81cc87f028534d965c908a8aa7dba2f9e235ac30f5e72ddf6bb45dc7b5ab",
+    "DarkSoulsRemastered.exe": "a45aaa36dd2f6cc151670a639ea5547043cf38ea79ff4178b963c6ed71f98d7b"
+  },
+  "params": {
+    "EquipParamWeapon": {
+      "rows": 1245,
+      "duplicate_ids": 0
+    },
+    "EquipParamProtector": {
+      "rows": 324,
+      "duplicate_ids": 0
+    },
+    "EquipParamAccessory": {
+      "rows": 41,
+      "duplicate_ids": 0
+    },
+    "EquipParamGoods": {
+      "rows": 272,
+      "duplicate_ids": 0
+    },
+    "ReinforceParamWeapon": {
+      "rows": 469,
+      "duplicate_ids": 0
+    },
+    "ReinforceParamProtector": {
+      "rows": 17,
+      "duplicate_ids": 0
+    },
+    "EquipMtrlSetParam": {
+      "rows": 276,
+      "duplicate_ids": 0
+    },
+    "default_EnemyBehaviorBank": {
+      "rows": 22,
+      "duplicate_ids": 0
+    },
+    "default_AIStandardInfoBank": {
+      "rows": 38,
+      "duplicate_ids": 2
+    },
+    "ThrowParam": {
+      "rows": 195,
+      "duplicate_ids": 0
+    },
+    "BehaviorParam": {
+      "rows": 2401,
+      "duplicate_ids": 0
+    },
+    "BehaviorParam_PC": {
+      "rows": 3163,
+      "duplicate_ids": 0
+    },
+    "NpcParam": {
+      "rows": 556,
+      "duplicate_ids": 0
+    },
+    "AtkParam_Pc": {
+      "rows": 1397,
+      "duplicate_ids": 0
+    },
+    "AtkParam_Npc": {
+      "rows": 2164,
+      "duplicate_ids": 0
+    },
+    "Magic": {
+      "rows": 141,
+      "duplicate_ids": 0
+    },
+    "NpcThinkParam": {
+      "rows": 476,
+      "duplicate_ids": 0
+    },
+    "ObjectParam": {
+      "rows": 941,
+      "duplicate_ids": 6
+    },
+    "Bullet": {
+      "rows": 632,
+      "duplicate_ids": 0
+    },
+    "SpEffectParam": {
+      "rows": 850,
+      "duplicate_ids": 0
+    },
+    "SpEffectVfxParam": {
+      "rows": 231,
+      "duplicate_ids": 1
+    },
+    "TalkParam": {
+      "rows": 3888,
+      "duplicate_ids": 0
+    },
+    "MenuColorTableParam": {
+      "rows": 81,
+      "duplicate_ids": 0
+    },
+    "ItemLotParam": {
+      "rows": 1536,
+      "duplicate_ids": 0
+    },
+    "MoveParam": {
+      "rows": 65,
+      "duplicate_ids": 0
+    },
+    "CharaInitParam": {
+      "rows": 314,
+      "duplicate_ids": 0
+    },
+    "FaceGenParam": {
+      "rows": 146,
+      "duplicate_ids": 0
+    },
+    "RagdollParam": {
+      "rows": 36,
+      "duplicate_ids": 0
+    },
+    "ShopLineupParam": {
+      "rows": 392,
+      "duplicate_ids": 0
+    },
+    "QwcChange": {
+      "rows": 12,
+      "duplicate_ids": 0
+    },
+    "QwcJudge": {
+      "rows": 73,
+      "duplicate_ids": 0
+    },
+    "GameAreaParam": {
+      "rows": 47,
+      "duplicate_ids": 0
+    },
+    "SkeletonParam": {
+      "rows": 37,
+      "duplicate_ids": 0
+    },
+    "CalcCorrectGraph": {
+      "rows": 39,
+      "duplicate_ids": 0
+    },
+    "LockCamParam": {
+      "rows": 37,
+      "duplicate_ids": 1
+    },
+    "ObjActParam": {
+      "rows": 49,
+      "duplicate_ids": 0
+    },
+    "HitMtrlParam": {
+      "rows": 29,
+      "duplicate_ids": 0
+    },
+    "KnockBackParam": {
+      "rows": 3,
+      "duplicate_ids": 0
+    },
+    "LevelSyncParam": {
+      "rows": 1,
+      "duplicate_ids": 0
+    },
+    "CoolTimeParam": {
+      "rows": 40,
+      "duplicate_ids": 0
+    },
+    "WhiteCoolTimeParam": {
+      "rows": 10,
+      "duplicate_ids": 0
+    }
+  },
+  "text": []
+}

@@ -58,6 +58,23 @@ class ItemText:
             self._fmgs[entry_id].entries[text_id] = text
             self._changed.add(entry_id)
 
+    @property
+    def fmg_ids(self) -> list[int]:
+        """Binder entry IDs of every FMG, base and patch (see `CATEGORIES` and `_PATCH_IDS`)."""
+        return list(self._fmgs)
+
+    def fmg_stem(self, fmg_id: int) -> str:
+        return self._entries[fmg_id].stem
+
+    def fmg_entries(self, fmg_id: int) -> dict[int, str]:
+        """Copy of one FMG's strings, keyed by text ID."""
+        return dict(self._fmgs[fmg_id].entries)
+
+    def set_fmg_entries(self, fmg_id: int, entries: dict[int, str]) -> None:
+        """Replace all strings of one FMG."""
+        self._fmgs[fmg_id].entries = dict(entries)
+        self._changed.add(fmg_id)
+
     def save(self, path: Path | str) -> None:
         for entry_id in self._changed:
             self._entries[entry_id].set_uncompressed_data(bytes(self._fmgs[entry_id]))

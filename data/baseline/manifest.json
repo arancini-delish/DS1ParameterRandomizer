@@ -3,6 +3,7 @@
   "soulstruct": "unknown",
   "sources": {
     "GameParam.parambnd.dcx": "cc4a81cc87f028534d965c908a8aa7dba2f9e235ac30f5e72ddf6bb45dc7b5ab",
+    "item.msgbnd.dcx": "20193b611fdf087da4d7d098f9ff754b0bb59f636519c483ba7960f77cfbf691",
     "DarkSoulsRemastered.exe": "a45aaa36dd2f6cc151670a639ea5547043cf38ea79ff4178b963c6ed71f98d7b"
   },
   "params": {
@@ -171,5 +172,42 @@
       "duplicate_ids": 0
     }
   },
-  "text": []
+  "text": [
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    100,
+    105,
+    106,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120
+  ]
 }

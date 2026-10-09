@@ -54,11 +54,12 @@ Each item needs: enumerate rows, define subtypes, list exclusions/pins, verify i
 | # | Audit | Status | Owner | Notes / findings |
 |---|---|---|---|---|
 | 30 | Sample per subtype: swapping two rows within a subtype produces working behaviour (spot-check list kept in AUDIT.md). | todo | | |
-| 31 | Appended (cloned) row IDs load and function for Bullet/Atk/SpEffect/Magic. | wip | | Appended Bullet 900000 (unused copy) loads without breaking boot. Still to check in game: an appended Bullet actually fired (e.g. a spell repointed to it), an appended SpEffect applied, an appended AtkParam hitting, an appended Magic castable; and IDs in both new-ID blocks. |
+| 31 | Appended (cloned) row IDs load and function for Bullet/Atk/SpEffect/Magic. | wip | | In game (2026-10-09, `tools/make_new_rows_test.py`): appended rows work when used, in both new-ID blocks. Soul Arrow fired a new Bullet 30000 (narrow block, via s16 Magic.refId) with the visuals copied onto it, hit with a new AtkParam_Pc 9000000 (10x damage) and applied a new caster SpEffect 9000000 (heal); Magic Weapon applied a new SpEffect 30000 (narrow block) with its new duration and damage. Not yet tested: an appended Magic row (saves store attuned spells by Magic ID), appended AtkParam_Npc / BehaviorParam rows. |
 | 32 | Online/save safety notes (offline-only recommendation). | todo | | |
 
 ## In-game spot-check log
 
 | Date | Feature / subtype | Rows tested | Result | Notes |
 |---|---|---|---|---|
+| 2026-10-09 | New rows in use (`tools/make_new_rows_test.py`) | Bullet 30000, AtkParam_Pc 9000000, SpEffectParam 9000000 and 30000; Magic 3000/3100 refIds; CharaInitParam 3006 | Pass | Both spells behaved as written. A second starting spell set in CharaInitParam (equip_Spell_02) shows in character creation but is not attuned at start; unrelated to new rows, keep in mind for starting-class edits. |
 | 2026-10-09 | Phase 1 I/O boot test (`tools/make_boot_test.py`) | All EquipParamWeapon weights, appended Bullet 900000, Darksign + Estus names/summary | Pass | Game boots, all edits visible. |

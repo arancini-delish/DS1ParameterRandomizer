@@ -64,7 +64,8 @@ def run(
         settings = preset.spells
         config = SpellConfig(tier_weights=tuple(settings.tier_weights), player=settings.player, enemy=settings.enemy,
                              visual_chance=settings.visual_chance, cross_school_visuals=settings.cross_school_visuals,
-                             status_chance=settings.status_chance, write_summaries=settings.write_summaries)
+                             status_chance=settings.status_chance, write_summaries=settings.write_summaries,
+                             motion_chance=settings.motion_chance, chain_chance=settings.chain_chance)
         result.spells = randomize_spells(session, config, random.Random(f"{seed}-spells"))
         log(f"Spells: {len(result.spells)} randomized "
             f"({sum(r.owner == 'player' for r in result.spells)} player, {sum(r.owner == 'enemy' for r in result.spells)} NPC)")

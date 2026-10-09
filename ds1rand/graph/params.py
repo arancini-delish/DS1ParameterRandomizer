@@ -6,6 +6,12 @@ Sources:
     behavior_variation  EquipParamWeapon/NpcParam `behaviorVariationId` -> every BehaviorParam(_PC) row with that
                         `variationId`. Behavior row IDs are 100000000 (player) / 200000000 (NPC) + variation * 1000 +
                         judge ID, but some vanilla behavior rows do not follow that formula, so the field is matched.
+    upgrade_path        engine rule: the blacksmith turns a weapon/armor row into the rows whose `originEquipWep*` /
+                        `originEquipPro*` name it (e.g. infusion paths), so origin -> upgraded row. Nothing else
+                        references most infusion-path rows.
+    item_lot_chain      engine rule (inferred, to verify in game): a referenced ItemLotParam row is followed by the
+                        consecutive rows after it (X -> X+1 while X+1 exists); 448 otherwise unreferenced vanilla lots
+                        sit directly after a referenced lot.
 
 A reference value of -1 or 0 means "none": row 0 of every param is a dummy/test row.
 
@@ -109,7 +115,27 @@ def extract_param_edges(baseline: Baseline, graph: RefGraph | None = None) -> Re
                 add_reference(graph, row_ids, src, field, value, candidates, source)
 
     _behavior_variation_edges(baseline, graph)
+    _upgrade_path_edges(graph)
+    _item_lot_chain_edges(baseline, graph)
     return graph
+
+
+def _upgrade_path_edges(graph: RefGraph) -> None:
+    pairs = {
+        (edge.dst, edge.src)
+        for edge in graph.edges
+        if edge.field.startswith(("originEquipWep", "originEquipPro")) and edge.src != edge.dst
+    }
+    for origin, upgraded in sorted(pairs):
+        graph.add(Edge(origin, upgraded, "upgrade_path", "upgrade_path"))
+
+
+def _item_lot_chain_edges(baseline: Baseline, graph: RefGraph) -> None:
+    lots = set(baseline.params["ItemLotParam"].rows)
+    for lot in sorted(lots):
+        if lot and lot + 1 in lots:
+            graph.add(Edge(Node.param("ItemLotParam", lot), Node.param("ItemLotParam", lot + 1), "next_lot",
+                           "item_lot_chain", "inferred"))
 
 
 def add_reference(

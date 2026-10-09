@@ -14,7 +14,7 @@ Decisions made: ship full vanilla rows in-repo; parse **everything** that can re
 - `param_categorizer.py` / `constants.py` — `SpellTypes` and classifier heuristics (spray anim IDs, ground-trace chain detection, lingering/point-blank/lobbed thresholds) → become initial classifier rules, validated by the audit.
 - `default_vals/RingSpEffectParam.csv`, `default_linear_magic_*.csv` — blank templates.
 - `main.py` preset-combo + distribution-validation pattern → generalize into a reusable `DistributionEditor` widget.
-- Retire: `witchy_util.py`, `WitchyBnd/`, `params/` XML cache, `id_to_names/` (superseded by Community Row Names).
+- Retired (removed): `witchy_util.py`, `WitchyBnd/`, `params/` and `msgs/` extraction caches, `id_to_names/` (superseded by Community Row Names). The prototype modules listed above now live in `legacy/` until ported.
 
 ## Target layout
 ```
@@ -37,9 +37,10 @@ tests/
 
 ## Phases
 
-### Phase 0 — Repo docs & housekeeping
-- Write `docs/ROADMAP.md` (these phases) and `docs/AUDIT.md` (the audit register below as a checklist with status/owner/notes columns).
-- Fix `.gitmodules`/`soulstruct` state: replace the submodule with a pinned pip/uv dependency (`soulstruct` at a fixed commit) in `pyproject.toml`; Python 3.13 venv already exists — confirm soulstruct supports it, else pin 3.12.
+### Phase 0 — Repo docs & housekeeping (done)
+- `docs/ROADMAP.md` and `docs/AUDIT.md` written.
+- soulstruct submodule replaced by a pinned dependency (`soulstruct==2.6.0`, Python >=3.13) in `pyproject.toml`.
+- Package skeleton `ds1rand/` created per the target layout; prototype moved to `legacy/`; game files and extraction caches git-ignored.
 
 ### Phase 1 — soulstruct I/O port
 - `io/gameparam.py`: load/save `GameParam.parambnd.dcx` via soulstruct's DSR `GameParamBND`; expose rows as typed dicts keyed by field name; ID allocation helpers (append new rows).

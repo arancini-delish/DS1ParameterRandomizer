@@ -1,0 +1,23 @@
+[project]
+name = "ds1rand"
+version = "0.1.0"
+description = "Parameter randomizer for Dark Souls: Remastered"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "PySide6>=6.6",
+    "soulstruct==2.6.0",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["ds1rand*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

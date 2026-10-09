@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import random
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
+from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
 from ds1rand.features.spells import SpellConfig, SpellResult, randomize_spells
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
@@ -26,6 +28,8 @@ class RunResult:
     ring_names: dict[int, str] = field(default_factory=dict)
     spells: list[SpellResult] = field(default_factory=list)
     spell_names: dict[int, str] = field(default_factory=dict)
+    projectiles: list[ProjectileResult] = field(default_factory=list)
+    goods_names: dict[int, str] = field(default_factory=dict)
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -70,6 +74,17 @@ def run(
         log(f"Spells: {len(result.spells)} randomized "
             f"({sum(r.owner == 'player' for r in result.spells)} player, {sum(r.owner == 'enemy' for r in result.spells)} NPC)")
 
+    if preset.projectiles.enabled:
+        settings = preset.projectiles
+        config = ProjectileConfig(**{f: getattr(settings, f) for f in (
+            "player_weights", "enemy_weights", "environment_weights", "player", "enemy", "environment",
+            "visual_chance", "motion_chance", "chain_chance", "status_chance", "cross_enemy", "spell_effects",
+            "write_summaries")})
+        result.projectiles = randomize_projectiles(session, config, random.Random(f"{seed}-projectiles"))
+        kinds = Counter(r.slot.owner for r in result.projectiles)
+        log(f"Projectiles: {len(result.projectiles)} randomized ({kinds['player']} player, {kinds['enemy']} enemy, "
+            f"{kinds['environment']} traps)")
+
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
     log(f"Wrote {', '.join(result.written) or 'nothing'} to {result.target}")
@@ -87,4 +102,6 @@ def _result(session: Session, seed: int) -> RunResult:
         foreign=[d.summary() for d in session.foreign_changes()["params"]],
         ring_names=dict(names),
         spell_names=spell_names,
+        goods_names={**session.base.text.get(10, ("", {}))[1],
+                     **{k: v for k, v in session.base.text.get(111, ("", {}))[1].items() if v}},
     )

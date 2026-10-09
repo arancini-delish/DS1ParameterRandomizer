@@ -1,6 +1,6 @@
 """Presets: every setting of a run, versioned, as JSON files or a short share string.
 
-A preset holds one section per feature (rings, spells; projectiles and enemy behaviour as they are built) plus the
+A preset holds one section per feature (rings, spells, projectiles; enemy behaviour when it is built) plus the
 seed. Share strings are "DS1R" + version + "-" + base64url(zlib(JSON)), so pasting one reproduces a run exactly.
 Unknown keys are ignored and missing keys take defaults, so presets from older versions keep loading.
 """
@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from ds1rand.features.rings import PRESETS as RING_PRESETS
+from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESETS
+from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.spells import PRESETS as SPELL_PRESETS
 
 VERSION = 1
@@ -42,11 +44,30 @@ class SpellsSettings:
 
 
 @dataclass
+class ProjectilesSettings:
+    enabled: bool = True
+    player_weights: tuple[float, float, float, float] = PROJECTILE_PRESETS["Standard"]
+    enemy_weights: tuple[float, float, float, float] = ENEMY_PROJECTILE_PRESETS["Standard"]
+    environment_weights: tuple[float, float, float, float] = ENEMY_PROJECTILE_PRESETS["Standard"]
+    player: bool = True
+    enemy: bool = True
+    environment: bool = True
+    visual_chance: float = 0.5
+    motion_chance: float = 0.4
+    chain_chance: float = 0.25
+    status_chance: float = 0.15
+    cross_enemy: bool = False
+    spell_effects: bool = False
+    write_summaries: bool = True
+
+
+@dataclass
 class Preset:
     name: str = "Standard"
     seed: int | None = None  # None: pick one at random when running
     rings: RingsSettings = field(default_factory=RingsSettings)
     spells: SpellsSettings = field(default_factory=SpellsSettings)
+    projectiles: ProjectilesSettings = field(default_factory=ProjectilesSettings)
 
     def to_dict(self) -> dict:
         return {"version": VERSION, **asdict(self)}
@@ -56,10 +77,12 @@ class Preset:
         if data.get("version", VERSION) > VERSION:
             raise ValueError(f"Preset version {data['version']} is newer than this ds1rand (version {VERSION})")
         sections = {}
-        for key, settings_cls in (("rings", RingsSettings), ("spells", SpellsSettings)):
+        for key, settings_cls in (("rings", RingsSettings), ("spells", SpellsSettings),
+                                  ("projectiles", ProjectilesSettings)):
             values = _known(settings_cls, data.get(key, {}))
-            if "tier_weights" in values:
-                values["tier_weights"] = tuple(values["tier_weights"])
+            for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights"):
+                if name in values:
+                    values[name] = tuple(values[name])
             sections[key] = settings_cls(**values)
         return cls(name=data.get("name", "Custom"), seed=data.get("seed"), **sections)
 
@@ -99,6 +122,9 @@ def _known(cls, data: dict) -> dict:
 # Built-in global presets. Each sets every feature's section; features added later get their own defaults here.
 BUILTIN: dict[str, Preset] = {
     name: Preset(name=name, rings=RingsSettings(tier_weights=RING_PRESETS[name]),
-                 spells=SpellsSettings(tier_weights=SPELL_PRESETS[name]))
+                 spells=SpellsSettings(tier_weights=SPELL_PRESETS[name]),
+                 projectiles=ProjectilesSettings(player_weights=PROJECTILE_PRESETS[name],
+                                                 enemy_weights=ENEMY_PROJECTILE_PRESETS[name],
+                                                 environment_weights=ENEMY_PROJECTILE_PRESETS[name]))
     for name in RING_PRESETS
 }

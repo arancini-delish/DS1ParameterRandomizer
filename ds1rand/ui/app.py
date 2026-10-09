@@ -1,7 +1,7 @@
 """The ds1rand window (Phase 7 prototype).
 
 Top: global preset (built-ins, Custom), import/export of preset files and share strings, game folder, seed, output.
-Tabs: one per feature (Rings, Spells; Projectiles and Enemy Behaviour arrive with Phase 6) and Install (what the
+Tabs: one per feature (Rings, Spells, Projectiles; Enemy Behaviour arrives with Phase 6) and Install (what the
 run would build on: other mods' changes, previous ds1rand output). Bottom: Validate / Randomize and the log.
 Work runs in a background thread so the window stays responsive.
 """
@@ -17,8 +17,11 @@ from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.features.rings import Tier
 from ds1rand.features.spells import PRESETS as SPELL_PRESETS
 from ds1rand.features.spells import SpellTier
+from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESETS
+from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
+from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
-from ds1rand.presets.schema import BUILTIN, Preset, RingsSettings, SpellsSettings
+from ds1rand.presets.schema import BUILTIN, Preset, ProjectilesSettings, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
 from ds1rand.ui.widgets import DistributionEditor
 
@@ -199,6 +202,130 @@ class SpellsTab(QtWidgets.QWidget):
         self.results.resizeColumnsToContents()
 
 
+class ProjectilesTab(QtWidgets.QWidget):
+    changed = QtCore.Signal()
+    OWNERS = (("player", "Player ammo and throwables"), ("enemy", "Enemy projectiles"),
+              ("environment", "Traps and hazards"))
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.enabled = QtWidgets.QCheckBox("Randomize projectiles")
+        self.enabled.toggled.connect(self._toggled)
+        layout.addWidget(self.enabled)
+
+        self.options = QtWidgets.QWidget()
+        options = QtWidgets.QVBoxLayout(self.options)
+        options.setContentsMargins(0, 0, 0, 0)
+        columns = QtWidgets.QHBoxLayout()
+        self.owner_boxes, self.distributions = {}, {}
+        for owner, label in self.OWNERS:
+            box = QtWidgets.QGroupBox(label)
+            box.setCheckable(True)
+            box.toggled.connect(self.changed)
+            box_layout = QtWidgets.QVBoxLayout(box)
+            presets = PROJECTILE_PRESETS if owner == "player" else ENEMY_PROJECTILE_PRESETS
+            editor = DistributionEditor([t.name.title() for t in ProjectileTier], presets)
+            editor.changed.connect(self.changed)
+            box_layout.addWidget(editor)
+            columns.addWidget(box)
+            self.owner_boxes[owner], self.distributions[owner] = box, editor
+        options.addLayout(columns)
+        chances = QtWidgets.QFormLayout()
+        self.visual_chance, self.motion_chance = self._percent(), self._percent()
+        self.chain_chance, self.status_chance = self._percent(), self._percent()
+        chances.addRow("Chance of new visuals", self.visual_chance)
+        chances.addRow("Chance of new speed / homing", self.motion_chance)
+        chances.addRow("Chance of a chained effect", self.chain_chance)
+        chances.addRow("Chance of an added status effect", self.status_chance)
+        options.addLayout(chances)
+        self.cross_enemy = QtWidgets.QCheckBox(
+            "Enemies may take any enemy's projectiles (best with the enemy randomizer's effects)")
+        self.spell_effects = QtWidgets.QCheckBox("Allow spell visuals and spell chained effects")
+        self.write_summaries = QtWidgets.QCheckBox("Write tier and carry limit into throwable summaries")
+        for box in (self.cross_enemy, self.spell_effects, self.write_summaries):
+            box.toggled.connect(self.changed)
+            options.addWidget(box)
+        layout.addWidget(self.options)
+
+        self.results = QtWidgets.QTableWidget(0, 8)
+        self.results.setHorizontalHeaderLabels(["Projectile", "Kind", "Tier", "Donor bullet", "Motion",
+                                                "Chained effect", "Status", "Power"])
+        self.results.horizontalHeader().setStretchLastSection(True)
+        self.results.verticalHeader().setVisible(False)
+        self.results.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        layout.addWidget(self.results, stretch=1)
+
+    def _percent(self) -> QtWidgets.QSpinBox:
+        spin = QtWidgets.QSpinBox()
+        spin.setRange(0, 100)
+        spin.setSuffix(" %")
+        spin.valueChanged.connect(self.changed)
+        return spin
+
+    def _toggled(self, checked: bool) -> None:
+        self.options.setEnabled(checked)
+        self.changed.emit()
+
+    def settings(self) -> ProjectilesSettings:
+        return ProjectilesSettings(
+            enabled=self.enabled.isChecked(),
+            player_weights=self.distributions["player"].values(),
+            enemy_weights=self.distributions["enemy"].values(),
+            environment_weights=self.distributions["environment"].values(),
+            player=self.owner_boxes["player"].isChecked(),
+            enemy=self.owner_boxes["enemy"].isChecked(),
+            environment=self.owner_boxes["environment"].isChecked(),
+            visual_chance=self.visual_chance.value() / 100,
+            motion_chance=self.motion_chance.value() / 100,
+            chain_chance=self.chain_chance.value() / 100,
+            status_chance=self.status_chance.value() / 100,
+            cross_enemy=self.cross_enemy.isChecked(),
+            spell_effects=self.spell_effects.isChecked(),
+            write_summaries=self.write_summaries.isChecked(),
+        )
+
+    def apply(self, settings: ProjectilesSettings) -> None:
+        widgets = [self.enabled, self.cross_enemy, self.spell_effects, self.write_summaries, self.visual_chance,
+                   self.motion_chance, self.chain_chance, self.status_chance, *self.owner_boxes.values(),
+                   *self.distributions.values()]
+        for widget in widgets:
+            widget.blockSignals(True)
+        self.enabled.setChecked(settings.enabled)
+        for owner in self.owner_boxes:
+            self.owner_boxes[owner].setChecked(getattr(settings, owner))
+            self.distributions[owner].set_values(getattr(settings, f"{owner}_weights"))
+        self.cross_enemy.setChecked(settings.cross_enemy)
+        self.spell_effects.setChecked(settings.spell_effects)
+        self.write_summaries.setChecked(settings.write_summaries)
+        self.visual_chance.setValue(round(settings.visual_chance * 100))
+        self.motion_chance.setValue(round(settings.motion_chance * 100))
+        self.chain_chance.setValue(round(settings.chain_chance * 100))
+        self.status_chance.setValue(round(settings.status_chance * 100))
+        for widget in widgets:
+            widget.blockSignals(False)
+        self.options.setEnabled(settings.enabled)
+
+    def is_valid(self) -> bool:
+        return all(self.distributions[o].is_valid() for o, box in self.owner_boxes.items() if box.isChecked())
+
+    def show_results(self, result: RunResult) -> None:
+        self.results.setRowCount(len(result.projectiles))
+        for row, p in enumerate(result.projectiles):
+            slot = p.slot
+            if slot.kind == "throwable":
+                name = result.goods_names.get(slot.row, str(slot.row))
+            elif slot.kind == "enemy":
+                name = f"{slot.group} behavior {slot.row}"
+            else:
+                name = f"{slot.kind.replace('_', ' ')} behavior {slot.row}"
+            chained = str(p.chained_from[1]) if p.chained_from else "-"
+            for col, text in enumerate((name, slot.kind, p.tier.name.title(), str(p.donor), p.motion or "-",
+                                        chained, str(p.status or "-"), f"{p.power:.2f}")):
+                self.results.setItem(row, col, QtWidgets.QTableWidgetItem(text))
+        self.results.resizeColumnsToContents()
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -219,7 +346,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.spells_tab = SpellsTab()
         self.spells_tab.changed.connect(self._settings_edited)
         self.tabs.addTab(self.spells_tab, "Spells")
-        for name in ("Projectiles", "Enemy Behaviour"):
+        self.projectiles_tab = ProjectilesTab()
+        self.projectiles_tab.changed.connect(self._settings_edited)
+        self.tabs.addTab(self.projectiles_tab, "Projectiles")
+        for name in ("Enemy Behaviour",):
             placeholder = QtWidgets.QLabel(f"{name} randomization is not built yet (roadmap Phase 6).")
             placeholder.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             self.tabs.setTabEnabled(self.tabs.addTab(placeholder, name), False)
@@ -299,12 +429,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def current_preset(self) -> Preset:
         seed = int(self.seed.text()) if self.seed.text() else None
         name = self.preset_combo.currentText()
-        return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings())
+        return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings(),
+                      projectiles=self.projectiles_tab.settings())
 
     def apply_preset(self, preset: Preset) -> None:
         self._loading = True
         self.rings_tab.apply(preset.rings)
         self.spells_tab.apply(preset.spells)
+        self.projectiles_tab.apply(preset.projectiles)
         self.seed.setText("" if preset.seed is None else str(preset.seed))
         builtin = BUILTIN.get(preset.name)
         same = builtin is not None and _sections(builtin) == _sections(preset)
@@ -386,6 +518,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if tab.enabled.isChecked() and not tab.distribution.is_valid():
                 QtWidgets.QMessageBox.warning(self, "Invalid settings", f"{label} tier weights must not all be 0.")
                 return
+        if self.projectiles_tab.enabled.isChecked() and not self.projectiles_tab.is_valid():
+            QtWidgets.QMessageBox.warning(self, "Invalid settings", "Projectile tier weights must not all be 0.")
+            return
         preset = self.current_preset()
         self.settings.setValue("preset", preset.to_json())
         out_dir = None if self.in_place.isChecked() else DEFAULT_OUT
@@ -426,6 +561,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _show_run(self, result: RunResult) -> None:
         self.rings_tab.show_results(result)
         self.spells_tab.show_results(result)
+        self.projectiles_tab.show_results(result)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
 
@@ -435,7 +571,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def _sections(preset: Preset) -> tuple:
     """The feature settings of a preset (what decides whether it still matches a built-in)."""
-    return preset.rings, preset.spells
+    return preset.rings, preset.spells, preset.projectiles
 
 
 def main() -> int:

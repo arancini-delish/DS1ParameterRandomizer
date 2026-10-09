@@ -1,7 +1,7 @@
 """Row budgets: what decoupling features costs, what cannot be decoupled, and where new rows go (Phase 4c).
 
 Decoupling. A row shared by several features can be copied so each feature edits its own row, but only references
-that are param fields holding a row ID (`REPOINTABLE_SOURCES`) can be pointed at a copy. References from game files
+that are param fields holding a single possible row ID (`is_repointable`) can be pointed at a copy. References from game files
 (EMEVD, MSB, TAE, AI Lua), engine-hardcoded IDs and computed IDs (behavior rows found by variation + judge ID) are
 fixed: the features reaching a row that way must keep the original. A feature also shares a row with every feature
 that shares the referencing row's copy. `decoupling` computes, per row, the partition of its features into groups that
@@ -28,6 +28,12 @@ from ds1rand.graph.model import Node, RefGraph
 from ds1rand.graph.params import field_refs
 
 REPOINTABLE_SOURCES = {"meta", "soulstruct"}
+
+
+def is_repointable(edge) -> bool:
+    """A param field holding exactly one possible target row ID. Ambiguous fields (e.g. a Bullet attack ID that exists
+    as both an AtkParam_Pc and an AtkParam_Npc row) cannot change value for one target without breaking the other."""
+    return edge.source in REPOINTABLE_SOURCES and edge.confidence == "certain"
 BUDGET_PARAMS = ("Magic", "Bullet", "AtkParam_Pc", "AtkParam_Npc", "SpEffectParam", "BehaviorParam",
                  "BehaviorParam_PC", "EquipParamWeapon", "EquipParamGoods", "EquipParamAccessory", "NpcThinkParam")
 
@@ -77,17 +83,30 @@ class _UnionFind:
         return sorted((frozenset(g) for g in by_root.values()), key=sorted)
 
 
-def decoupling(graph: RefGraph, baseline: Baseline) -> dict[Node, RowGroups]:
-    """Feature groups per used param row (rows used by a single feature have one group)."""
-    usage = compute_usage(graph, baseline, all_nodes=True)
+def decoupling(
+    graph: RefGraph,
+    baseline: Baseline,
+    extra_merges: dict[Node, list[set[str]]] | None = None,
+    usage: dict[Node, set[str]] | None = None,
+    anchors: dict[Node, set[str]] | None = None,
+) -> dict[Node, RowGroups]:
+    """Feature groups per used param row (rows used by a single feature have one group). `extra_merges` forces
+    further features to share a row (e.g. features that are not being randomized, or copies a cap cannot afford);
+    `anchors` names features that must keep a row's original ID (e.g. items the player owns by ID)."""
+    usage = usage if usage is not None else compute_usage(graph, baseline, all_nodes=True)
     sets = {node: _UnionFind(features) for node, features in usage.items()}
+    for node, merges in (extra_merges or {}).items():
+        for merge in merges:
+            sets[node].union(merge & usage.get(node, set()))
     fixed: dict[Node, set[str]] = defaultdict(set)
     for node, features in usage.items():
         if node.kind != "param":
             continue
         for edge in graph.users_of(node):
-            if is_usage_edge(edge) and edge.source not in REPOINTABLE_SOURCES:
+            if is_usage_edge(edge) and not is_repointable(edge):
                 fixed[node] |= usage.get(edge.src, set()) & features
+    for node, features in (anchors or {}).items():
+        fixed[node] |= features & usage.get(node, set())
     for node, features in fixed.items():
         sets[node].union(features)
 
@@ -173,11 +192,12 @@ class IdAllocator:
     def __init__(self, baseline: Baseline):
         self.taken = {name: set(pb.rows) for name, pb in baseline.params.items()}
 
-    def allocate(self, param: str, max_id: int = 2**31 - 1) -> int:
+    def allocate(self, param: str, max_id: int = 2**31 - 1, step: int = 1) -> int:
+        """Lowest free ID; `step` > 1 returns a multiple of `step` (weapon/armor IDs are multiples of 100)."""
         for first, last in reversed(NEW_ID_BLOCKS):
             if first > max_id:
                 continue
-            for row_id in range(first, min(last, max_id) + 1):
+            for row_id in range(-(-first // step) * step, min(last, max_id) + 1, step):
                 if row_id not in self.taken[param]:
                     self.taken[param].add(row_id)
                     return row_id

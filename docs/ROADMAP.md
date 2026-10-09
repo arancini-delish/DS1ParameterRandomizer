@@ -86,10 +86,18 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - **Minimum budgets**: per feature, the number of distinct rows of each param needed so that every user of that feature gets its own decoupled chain (e.g. spell X needs 1 Magic + 3 Bullet + 1 Atk + 2 SpEffect). Computed from graph reach, stored in `budgets.json`.
 - **Free pool**: rows unused by anything (orphans), plus free ID ranges appendable to each param (soulstruct allows adding rows) → surplus count per param.
 
-### Phase 5 — Allocation layer (`alloc/`)
-- Decouple shared rows: when feature A randomizes a row also used by feature B, clone into a new ID and repoint only A's references (param refs only — never rewrite EMEVD/MSB/TAE/Lua; rows referenced from those are fixed-ID and become "anchors" that keep their ID).
-- Reserve minimum budgets per enabled feature first; surplus distributed by user weighting to compound chains (hit-bullets, child bullets, extra target SpEffects, Atk on-hit effects).
-- Spec-then-write model (from current `ReferencedObject.spec` idea): randomizers emit specs; allocator resolves IDs; writer applies once.
+### Phase 5 — Allocation layer (done)
+- `ds1rand/alloc/store.py`: `RowStore`, the working copy randomizers edit: starts as the vanilla baseline, records only changed and new rows (with the vanilla row each new row descends from).
+- `ds1rand/alloc/allocator.py`: `allocate(graph, baseline, store, enabled, budget, params=...)` copies shared rows for the features being randomized and repoints their references:
+  - features not enabled are merged and keep the original rows (no copies);
+  - the original ID stays with the group holding fixed references: game files, engine, computed IDs, ambiguous fields (one value, two possible targets), and a feature's own roots (items the player owns by ID: weapons, armor, rings, goods, spells);
+  - caps (`RowBudget`) merge the lowest-priority copy groups back until every param fits (priority = order of `enabled`); rows whose referencing field is too narrow for any new ID block stay coupled;
+  - copies get IDs that fit every referencing field (spell roots <= 32767), multiples of 100 for weapons/armor; repointing keeps upgrade-level offsets;
+  - `params` limits copying to what the randomizers edit (enemy behaviour: 1 copy; player spells: 67 Bullet, 30 AtkParam_Pc, 18 SpEffect copies, 33 Magic repointed);
+  - `Allocation.owned(feature)` / `coupled(feature)` / `row_for(row, feature)` tell randomizers what they may edit alone.
+- `ds1rand/alloc/write.py`: `build_gameparam` loads the disk GameParam, refuses foreign modifications, restores vanilla, applies the store; `write_gameparam` saves and writes the ds1rand marker. Re-running on our own output gives identical rows.
+- Surplus rows for compounding chains: Phase 6 randomizers take them from `IdAllocator` + `RowStore.add` within `RowBudget.plan(...)['surplus']`.
+- Finding: the curated engine entry for NG+ SpEffects (7400-7599) is referenced by NpcParam.GameClearSpEffectID, so the engine claim may be redundant (AUDIT 14).
 
 ### Phase 6 — Feature randomizers
 1. **Rings** — port `ring_randomizer.py` onto the new model; exclusion list (key/quest rings: Covenant of Artorias, Darkmoon Séance, Orange Charred, plus user-configurable keep list); effect score tiers + distribution; rewrite Accessory summary/description FMGs (replace or append mode).

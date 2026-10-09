@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
+from ds1rand.features.spells import SpellConfig, SpellResult, randomize_spells
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
 from ds1rand.session import Session
@@ -23,6 +24,8 @@ class RunResult:
     foreign: list[str]
     rings: list[RingResult] = field(default_factory=list)
     ring_names: dict[int, str] = field(default_factory=dict)
+    spells: list[SpellResult] = field(default_factory=list)
+    spell_names: dict[int, str] = field(default_factory=dict)
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -50,13 +53,21 @@ def run(
     for change in result.foreign:
         log(f"  kept from other mods: {change}")
 
-    rng = random.Random(seed)
+    # One random stream per feature, so turning one feature on or off does not change another's results.
     if preset.rings.enabled:
         settings = preset.rings
         config = RingConfig(tier_weights=tuple(settings.tier_weights), isolate_npcs=settings.isolate_npcs,
                             write_summaries=settings.write_summaries)
-        result.rings = randomize_rings(session, config, rng)
+        result.rings = randomize_rings(session, config, random.Random(f"{seed}-rings"))
         log(f"Rings: {len(result.rings)} randomized")
+    if preset.spells.enabled:
+        settings = preset.spells
+        config = SpellConfig(tier_weights=tuple(settings.tier_weights), player=settings.player, enemy=settings.enemy,
+                             visual_chance=settings.visual_chance, cross_school_visuals=settings.cross_school_visuals,
+                             status_chance=settings.status_chance, write_summaries=settings.write_summaries)
+        result.spells = randomize_spells(session, config, random.Random(f"{seed}-spells"))
+        log(f"Spells: {len(result.spells)} randomized "
+            f"({sum(r.owner == 'player' for r in result.spells)} player, {sum(r.owner == 'enemy' for r in result.spells)} NPC)")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
@@ -66,6 +77,7 @@ def run(
 
 def _result(session: Session, seed: int) -> RunResult:
     names = session.base.text.get(13, ("", {}))[1]
+    spell_names = {**session.base.text.get(14, ("", {}))[1], **{k: v for k, v in session.base.text.get(118, ("", {}))[1].items() if v}}
     return RunResult(
         seed=seed,
         gameparam_base=session.gameparam_base.state,
@@ -73,4 +85,5 @@ def _result(session: Session, seed: int) -> RunResult:
         conflicts=session.conflicts,
         foreign=[d.summary() for d in session.foreign_changes()["params"]],
         ring_names=dict(names),
+        spell_names=spell_names,
     )

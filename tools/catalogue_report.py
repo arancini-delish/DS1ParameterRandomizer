@@ -6,6 +6,7 @@ import argparse
 from collections import Counter
 
 from ds1rand.baseline.store import Baseline
+from ds1rand.catalogue.effects import EffectClassifier
 from ds1rand.catalogue.subtypes import coverage
 from ds1rand.catalogue.usage import FEATURES, compute_usage
 from ds1rand.graph.build import ORPHAN_PARAMS, build_graph
@@ -17,7 +18,8 @@ def main() -> None:
     args = parser.parse_args()
 
     baseline = Baseline.load()
-    usage = compute_usage(build_graph(baseline), baseline)
+    graph = build_graph(baseline)
+    usage = compute_usage(graph, baseline)
 
     print(f"{'param':22} {'rows':>5} {'used':>5} {'shared':>6}  " + " ".join(f"{f[:12]:>12}" for f in FEATURES))
     for param in ORPHAN_PARAMS:
@@ -31,6 +33,17 @@ def main() -> None:
     for param, counts in coverage(baseline, used).items():
         print(f"\n{param} subtypes ({sum(counts.values())} used rows):")
         for subtype, count in counts.most_common():
+            print(f"  {count:5}  {subtype}")
+
+    effects = EffectClassifier(baseline, graph)
+    speffects = Counter(effects.speffect(r).subtype for r in baseline.params["SpEffectParam"].rows if r)
+    print(f"\nSpEffectParam subtypes ({sum(speffects.values())} rows):")
+    for subtype, count in speffects.most_common():
+        print(f"  {count:5}  {subtype}")
+    for param in ("AtkParam_Pc", "AtkParam_Npc"):
+        attacks = Counter(effects.attack(param, r) for r in baseline.params[param].rows if r)
+        print(f"\n{param} subtypes ({sum(attacks.values())} rows):")
+        for subtype, count in attacks.most_common():
             print(f"  {count:5}  {subtype}")
 
     if args.shared:

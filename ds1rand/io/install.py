@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 
 DEFAULT_GAME_DIR = Path(r"C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS REMASTERED")
@@ -15,13 +16,17 @@ class GameInstall:
 
     root: Path
 
+    # Locations inside the game folder (also the layout of ds1rand output folders).
+    GAMEPARAM: ClassVar[Path] = Path("param") / "GameParam" / "GameParam.parambnd.dcx"
+    ITEM_MSGBND: ClassVar[Path] = Path("msg") / "ENGLISH" / "item.msgbnd.dcx"
+
     @property
     def gameparam(self) -> Path:
-        return self.root / "param" / "GameParam" / "GameParam.parambnd.dcx"
+        return self.root / self.GAMEPARAM
 
     @property
     def item_msgbnd(self) -> Path:
-        return self.root / "msg" / "ENGLISH" / "item.msgbnd.dcx"
+        return self.root / self.ITEM_MSGBND
 
     def missing_files(self) -> list[Path]:
         return [p for p in (self.gameparam, self.item_msgbnd) if not p.is_file()]

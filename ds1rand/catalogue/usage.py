@@ -87,8 +87,8 @@ _ENEMY_SIDE_OF_C0000: Callable[[Edge], bool] = lambda e: not (
 )
 
 
-def compute_usage(graph: RefGraph, baseline: Baseline) -> dict[Node, set[str]]:
-    """Param row -> features that use it."""
+def compute_usage(graph: RefGraph, baseline: Baseline, all_nodes: bool = False) -> dict[Node, set[str]]:
+    """Param row -> features that use it (every reached node, including non-param ones, if `all_nodes`)."""
     roots = feature_roots(graph, baseline)
     edge_filters: dict[str, Callable[[Edge], bool]] = {
         "player_animation": _PLAYER_SIDE_OF_C0000,
@@ -111,7 +111,7 @@ def compute_usage(graph: RefGraph, baseline: Baseline) -> dict[Node, set[str]]:
                 seen.add(edge.dst)
                 stack.append(edge.dst)
         for node in seen:
-            if node.kind == "param":
+            if all_nodes or node.kind == "param":
                 usage[node].add(feature)
     return dict(usage)
 

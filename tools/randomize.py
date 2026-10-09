@@ -1,54 +1,59 @@
-"""Run ds1rand's randomizers on an install (until the UI exists).
+"""Run ds1rand from the command line (the UI is `python -m ds1rand.ui`).
 
-Builds on the files as the other mods left them (run item -> enemy -> fog gate first). By default writes the result to
-out/randomized/ (mirroring the game folder: copy its `param` and `msg` folders over the game's); `--in-place` writes
-into the game folder directly, keeping `<file>.ds1rand-base` copies and markers so re-runs start from the same base.
+Builds on the files as the other mods left them (run item -> enemy -> fog gate first). By default writes to
+out/randomized/ (mirroring the game folder: copy its `param` and `msg` folders over the game's, including the
+`.ds1rand-base` / `.ds1rand.json` companions); `--in-place` writes into the game folder.
 
-Usage: uv run python tools/randomize.py --rings [PRESET] [--seed N] [--no-isolate-npcs] [--in-place] [--game-dir DIR]
+Settings come from a built-in preset (`--preset Standard`), a preset file (`--preset-file`), or a share string
+(`--share`); `--rings PRESET` overrides the ring distribution, `--no-rings` turns rings off.
+
+Usage: uv run python tools/randomize.py [--preset NAME | --preset-file PATH | --share STRING] [--rings PRESET]
+                                        [--no-rings] [--seed N] [--in-place] [--game-dir DIR] [--print-share]
 """
 import argparse
-import random
 from pathlib import Path
 
-from ds1rand.features.rings import PRESETS, RingConfig, randomize_rings
+from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.io.install import GameInstall
-from ds1rand.session import Session
-
-OUT = Path(__file__).resolve().parent.parent / "out" / "randomized"
+from ds1rand.presets.schema import BUILTIN, Preset
+from ds1rand.run import DEFAULT_OUT, run
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--rings", nargs="?", const="Standard", choices=sorted(PRESETS), help="Randomize rings")
-    parser.add_argument("--no-isolate-npcs", action="store_true", help="Let NPC phantoms share randomized rings")
-    parser.add_argument("--seed", type=int, default=None)
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--preset", choices=sorted(BUILTIN), default="Standard")
+    source.add_argument("--preset-file", type=Path)
+    source.add_argument("--share")
+    parser.add_argument("--rings", choices=sorted(RING_PRESETS), help="Ring tier distribution")
+    parser.add_argument("--no-rings", action="store_true")
+    parser.add_argument("--seed", type=int)
     parser.add_argument("--in-place", action="store_true", help="Write into the game folder")
     parser.add_argument("--game-dir")
+    parser.add_argument("--print-share", action="store_true", help="Print the share string of the run")
     args = parser.parse_args()
 
-    seed = args.seed if args.seed is not None else random.randrange(2**31)
-    rng = random.Random(seed)
-    session = Session.open(GameInstall(Path(args.game_dir)) if args.game_dir else None)
-    print(f"Seed {seed}. GameParam base: {session.gameparam_base.state}; item text base: {session.text_base.state}")
-    for conflict in session.conflicts:
-        print(f"  conflict: {conflict}")
-    foreign = [d.summary() for d in session.foreign_changes()["params"]]
-    if foreign:
-        print("Other mods' changes kept: " + "; ".join(foreign))
-
-    info = {"seed": seed}
+    if args.share:
+        preset = Preset.from_share_string(args.share)
+    elif args.preset_file:
+        preset = Preset.load(args.preset_file)
+    else:
+        preset = BUILTIN[args.preset]
     if args.rings:
-        config = RingConfig(tier_weights=PRESETS[args.rings], isolate_npcs=not args.no_isolate_npcs)
-        results = randomize_rings(session, config, rng)
-        info["rings"] = args.rings
-        print(f"\nRings ({args.rings}):")
-        for r in results:
-            name = session.base.text.get(13, ("", {}))[1].get(r.ring_id, "?")
-            print(f"  {r.ring_id} {name:32} {r.tier.name:9} {', '.join(r.summaries)}")
+        preset.rings.tier_weights = RING_PRESETS[args.rings]
+    if args.no_rings:
+        preset.rings.enabled = False
+    if args.seed is not None:
+        preset.seed = args.seed
 
-    written = session.write(info, out_dir=None if args.in_place else OUT)
-    target = session.install.root if args.in_place else OUT
-    print(f"\nWrote {', '.join(written) or 'nothing'} to {target}")
+    install = GameInstall(Path(args.game_dir)) if args.game_dir else GameInstall.default()
+    result = run(preset, install, out_dir=None if args.in_place else DEFAULT_OUT)
+    for ring in result.rings:
+        print(f"  {ring.ring_id} {result.ring_names.get(ring.ring_id, '?'):32} {ring.tier.name:9} "
+              f"{', '.join(ring.summaries)}")
+    if args.print_share:
+        preset.seed = result.seed
+        print(f"Share string: {preset.to_share_string()}")
 
 
 if __name__ == "__main__":

@@ -95,15 +95,17 @@ class Session:
         With `out_dir`, the files (and their base copies and markers) go there, mirroring the install's layout, instead
         of into the game folder. Returns the patch records written."""
         written = {}
-        for path, resolution, apply, changes in (
-            (self.install.gameparam, self.gameparam_base, lambda b: apply_params(b, self.store), self.store.changes()),
-            (self.install.item_msgbnd, self.text_base, lambda b: apply_text(b, self.text), self.text),
+        for path, relative, resolution, apply, changes in (
+            (self.install.gameparam, GameInstall.GAMEPARAM, self.gameparam_base,
+             lambda b: apply_params(b, self.store), self.store.changes()),
+            (self.install.item_msgbnd, GameInstall.ITEM_MSGBND, self.text_base,
+             lambda b: apply_text(b, self.text), self.text),
         ):
             if not changes and resolution.state == "external":
                 continue
             data, patches = apply(resolution.data)
             if out_dir is not None:
-                path = Path(out_dir) / path.relative_to(self.install.root)
+                path = Path(out_dir) / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
             write_output(path, data, resolution.data, patches, info)
             written[path.name] = patches

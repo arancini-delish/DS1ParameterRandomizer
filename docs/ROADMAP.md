@@ -111,12 +111,11 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 3. **Projectiles** — non-spell bullets (arrows/bolts, throwables, enemy ranged, traps); same chaining engine, non-spell sfx pool; player cost model (ammo/goods price, weight, damage vs. bow/crossbow association); separate distributions for player/enemy/environment.
 4. **Enemy behaviour** — NpcParam / NpcThinkParam / MoveParam fields: turn speed, detection (sight/hearing radius & angle), move speed, aggression/battle-goal related fields, poise/stamina; each field toggleable with min/max/distribution; per-enemy-category exclusions (bosses, NPCs, scripted).
 
-### Phase 7 — UI & presets
-- Main window: global preset bar (built-in: Vanilla-ish / Standard / Chaos / custom), game dir, seed, "Validate install" (runs baseline diff), Randomize, report pane.
-- Tabs: Rings, Spells, Projectiles, Enemy Behaviour, plus **Audit** tab (read-only graph/coverage browser — useful for development).
-- Reusable `DistributionEditor` (weights per tier/score bucket, normalised, preset-able) and `FieldRangeEditor` for enemy fields.
-- Preset schema versioned (dataclasses → JSON); share codec = JSON → zlib → base64url string with version + seed; import/export file and clipboard. Global preset sets all tab presets; tab-level overrides allowed.
-- Output: spoiler/changes log (per feature, human readable).
+### Phase 7 — UI & presets (prototype done; grows with each Phase 6 feature)
+- `ds1rand/presets/schema.py`: versioned `Preset` (seed + one section per feature; rings now), JSON files and share strings (`DS1R1-` + base64url(zlib(JSON))); unknown keys ignored, missing keys default, newer versions refused. Built-in global presets Easy / Standard / Hard / Misery.
+- `ds1rand/run.py`: `run(preset, install, out_dir)` / `validate(install)`, shared by `tools/randomize.py` (now `--preset`, `--preset-file`, `--share`, `--print-share`) and the UI.
+- `ds1rand/ui` (`python -m ds1rand.ui`): global preset bar with import/export of files and share strings, game folder, seed, output (out folder or in place); tabs Rings (enable, `DistributionEditor` for tier weights with presets and shares, NPC isolation, summaries, results table), Spells / Projectiles / Enemy Behaviour (disabled until built), Install (bases, other mods' changes, conflicts); Validate / Randomize run in a worker thread; log pane; last game folder and preset remembered (QSettings).
+- Still to come: per-feature tabs as Phase 6 features land, an Audit tab (graph/coverage browser), a spoiler/changes log file.
 
 ### Phase 8 — Packaging
 - PyInstaller build; ship `data/` alongside.

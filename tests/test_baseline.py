@@ -12,6 +12,7 @@ from ds1rand.baseline.compare import (
     write_marker,
 )
 from ds1rand.baseline.store import Baseline, sha256_file
+from ds1rand.defs.paramdef import load_paramdefs
 from ds1rand.io.gameparam import GameParams
 from ds1rand.io.msg import ItemText
 
@@ -49,6 +50,13 @@ def test_baseline_shape(baseline):
     bullet = baseline.params["Bullet"]
     assert "atkId_Bullet" in bullet.fields
     assert all(len(values) == len(bullet.fields) for values in bullet.rows.values())
+
+
+def test_fields_match_ds1paramdefs(baseline):
+    defs = load_paramdefs()
+    for name, pb in baseline.params.items():
+        param_def = defs[baseline.manifest["params"][name]["param_type"]]
+        assert pb.fields == [f.name for f in param_def.value_fields], name
 
 
 def test_write_load_round_trip(baseline, tmp_path):

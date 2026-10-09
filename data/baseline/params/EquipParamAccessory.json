@@ -1,6 +1,6 @@
 {
 "param": "EquipParamAccessory",
-"fields": ["refId", "sfxVariationId", "weight", "behaviorId", "basicPrice", "sellValue", "sortId", "qwcId", "equipModelId", "iconId", "shopLv", "trophySGradeId", "trophySeqId", "equipModelCategory", "equipModelGender", "accessoryCategory", "refCategory", "spEffectCategory", "vagrantItemLotId", "vagrantBonusEneDropItemLotId", "vagrantItemEneDropItemLotId", "isDeposit:1", "isEquipOutBrake:1", "disableMultiDropShare:1"],
+"fields": ["refId", "sfxVariationId", "weight", "behaviorId", "basicPrice", "sellValue", "sortId", "qwcId", "equipModelId", "iconId", "shopLv", "trophySGradeId", "trophySeqId", "equipModelCategory", "equipModelGender", "accessoryCategory", "refCategory", "spEffectCategory", "vagrantItemLotId", "vagrantBonusEneDropItemLotId", "vagrantItemEneDropItemLotId", "isDeposit", "isEquipOutBrake", "disableMultiDropShare"],
 "rows": {
 "100": [2000,-1,0.0,0,0,1000,3,0,0,4000,-1,-1,-1,0,0,0,2,0,101400,101410,101420,1,0,0],
 "101": [2010,-1,0.0,0,0,100,12,0,0,4001,-1,-1,-1,0,0,0,2,0,101400,101410,101420,1,0,0],

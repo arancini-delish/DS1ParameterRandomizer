@@ -8,166 +8,207 @@
   },
   "params": {
     "EquipParamWeapon": {
+      "param_type": "EQUIP_PARAM_WEAPON_ST",
       "rows": 1245,
       "duplicate_ids": 0
     },
     "EquipParamProtector": {
+      "param_type": "EQUIP_PARAM_PROTECTOR_ST",
       "rows": 324,
       "duplicate_ids": 0
     },
     "EquipParamAccessory": {
+      "param_type": "EQUIP_PARAM_ACCESSORY_ST",
       "rows": 41,
       "duplicate_ids": 0
     },
     "EquipParamGoods": {
+      "param_type": "EQUIP_PARAM_GOODS_ST",
       "rows": 272,
       "duplicate_ids": 0
     },
     "ReinforceParamWeapon": {
+      "param_type": "REINFORCE_PARAM_WEAPON_ST",
       "rows": 469,
       "duplicate_ids": 0
     },
     "ReinforceParamProtector": {
+      "param_type": "REINFORCE_PARAM_PROTECTOR_ST",
       "rows": 17,
       "duplicate_ids": 0
     },
     "EquipMtrlSetParam": {
+      "param_type": "EQUIP_MTRL_SET_PARAM_ST",
       "rows": 276,
       "duplicate_ids": 0
     },
     "default_EnemyBehaviorBank": {
+      "param_type": "ENEMY_STANDARD_INFO_BANK",
       "rows": 22,
       "duplicate_ids": 0
     },
     "default_AIStandardInfoBank": {
+      "param_type": "AI_STANDARD_INFO_BANK",
       "rows": 38,
       "duplicate_ids": 2
     },
     "ThrowParam": {
+      "param_type": "THROW_INFO_BANK",
       "rows": 195,
       "duplicate_ids": 0
     },
     "BehaviorParam": {
+      "param_type": "BEHAVIOR_PARAM_ST",
       "rows": 2401,
       "duplicate_ids": 0
     },
     "BehaviorParam_PC": {
+      "param_type": "BEHAVIOR_PARAM_ST",
       "rows": 3163,
       "duplicate_ids": 0
     },
     "NpcParam": {
+      "param_type": "NPC_PARAM_ST",
       "rows": 556,
       "duplicate_ids": 0
     },
     "AtkParam_Pc": {
+      "param_type": "ATK_PARAM_ST",
       "rows": 1397,
       "duplicate_ids": 0
     },
     "AtkParam_Npc": {
+      "param_type": "ATK_PARAM_ST",
       "rows": 2164,
       "duplicate_ids": 0
     },
     "Magic": {
+      "param_type": "MAGIC_PARAM_ST",
       "rows": 141,
       "duplicate_ids": 0
     },
     "NpcThinkParam": {
+      "param_type": "NPC_THINK_PARAM_ST",
       "rows": 476,
       "duplicate_ids": 0
     },
     "ObjectParam": {
+      "param_type": "OBJECT_PARAM_ST",
       "rows": 941,
       "duplicate_ids": 6
     },
     "Bullet": {
+      "param_type": "BULLET_PARAM_ST",
       "rows": 632,
       "duplicate_ids": 0
     },
     "SpEffectParam": {
+      "param_type": "SP_EFFECT_PARAM_ST",
       "rows": 850,
       "duplicate_ids": 0
     },
     "SpEffectVfxParam": {
+      "param_type": "SP_EFFECT_VFX_PARAM_ST",
       "rows": 231,
       "duplicate_ids": 1
     },
     "TalkParam": {
+      "param_type": "TALK_PARAM_ST",
       "rows": 3888,
       "duplicate_ids": 0
     },
     "MenuColorTableParam": {
+      "param_type": "MENU_PARAM_COLOR_TABLE_ST",
       "rows": 81,
       "duplicate_ids": 0
     },
     "ItemLotParam": {
+      "param_type": "ITEMLOT_PARAM_ST",
       "rows": 1536,
       "duplicate_ids": 0
     },
     "MoveParam": {
+      "param_type": "MOVE_PARAM_ST",
       "rows": 65,
       "duplicate_ids": 0
     },
     "CharaInitParam": {
+      "param_type": "CHARACTER_INIT_PARAM",
       "rows": 314,
       "duplicate_ids": 0
     },
     "FaceGenParam": {
+      "param_type": "FACE_PARAM_ST",
       "rows": 146,
       "duplicate_ids": 0
     },
     "RagdollParam": {
+      "param_type": "RAGDOLL_PARAM_ST",
       "rows": 36,
       "duplicate_ids": 0
     },
     "ShopLineupParam": {
+      "param_type": "SHOP_LINEUP_PARAM",
       "rows": 392,
       "duplicate_ids": 0
     },
     "QwcChange": {
+      "param_type": "QWC_CHANGE_PARAM_ST",
       "rows": 12,
       "duplicate_ids": 0
     },
     "QwcJudge": {
+      "param_type": "QWC_JUDGE_PARAM_ST",
       "rows": 73,
       "duplicate_ids": 0
     },
     "GameAreaParam": {
+      "param_type": "GAME_AREA_PARAM_ST",
       "rows": 47,
       "duplicate_ids": 0
     },
     "SkeletonParam": {
+      "param_type": "SKELETON_PARAM_ST",
       "rows": 37,
       "duplicate_ids": 0
     },
     "CalcCorrectGraph": {
+      "param_type": "CACL_CORRECT_GRAPH_ST",
       "rows": 39,
       "duplicate_ids": 0
     },
     "LockCamParam": {
+      "param_type": "LOCK_CAM_PARAM_ST",
       "rows": 37,
       "duplicate_ids": 1
     },
     "ObjActParam": {
+      "param_type": "OBJ_ACT_PARAM_ST",
       "rows": 49,
       "duplicate_ids": 0
     },
     "HitMtrlParam": {
+      "param_type": "HIT_MTRL_PARAM_ST",
       "rows": 29,
       "duplicate_ids": 0
     },
     "KnockBackParam": {
+      "param_type": "KNOCKBACK_PARAM_ST",
       "rows": 3,
       "duplicate_ids": 0
     },
     "LevelSyncParam": {
+      "param_type": "LEVELSYNC_PARAM_ST",
       "rows": 1,
       "duplicate_ids": 0
     },
     "CoolTimeParam": {
+      "param_type": "COOL_TIME_PARAM_ST",
       "rows": 40,
       "duplicate_ids": 0
     },
     "WhiteCoolTimeParam": {
+      "param_type": "WHITE_COOL_TIME_PARAM_ST",
       "rows": 10,
       "duplicate_ids": 0
     }

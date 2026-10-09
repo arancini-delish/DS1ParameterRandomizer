@@ -1,6 +1,6 @@
 {
 "param": "EquipMtrlSetParam",
-"fields": ["materialId01", "materialId02", "materialId03", "materialId04", "materialId05", "itemNum01", "itemNum02", "itemNum03", "itemNum04", "itemNum05", "isDisableDispNum01:1", "isDisableDispNum02:1", "isDisableDispNum03:1", "isDisableDispNum04:1", "isDisableDispNum05:1"],
+"fields": ["materialId01", "materialId02", "materialId03", "materialId04", "materialId05", "itemNum01", "itemNum02", "itemNum03", "itemNum04", "itemNum05", "isDisableDispNum01", "isDisableDispNum02", "isDisableDispNum03", "isDisableDispNum04", "isDisableDispNum05"],
 "rows": {
 "0": [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0],
 "1": [1000,-1,-1,-1,-1,1,-1,-1,-1,-1,0,0,0,0,0],

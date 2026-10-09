@@ -1,11 +1,12 @@
 """The vanilla baseline shipped in `data/baseline/`: every param row and every item FMG string.
 
 Layout:
-    manifest.json        source file hashes, soulstruct version, per-param row counts and vanilla duplicate row IDs
+    manifest.json        source file hashes, soulstruct version, per-param type, row count and vanilla duplicate row IDs
     params/<Name>.json   {"param", "fields", "rows": {row_id: [values in `fields` order]}}, one row per line
     text/item.json       {fmg_entry_id: {"stem", "entries": {text_id: string}}}
 
-Field names are paramdef internal names. Only ints and floats occur, and JSON round-trips both exactly.
+Field names are the paramdef names from `ds1paramdefs/Defs`, padding excluded (see `GameParams.field_names`). Only ints
+and floats occur, and JSON round-trips both exactly.
 """
 from __future__ import annotations
 
@@ -54,16 +55,18 @@ class Baseline:
 
         param_baselines = {}
         for name in params.names:
-            fields = params.field_names(name)
-            param_baselines[name] = ParamBaseline(
-                name, fields, {row_id: [row[f] for f in fields] for row_id, row in params[name].items()}
-            )
+            rows = {row_id: list(params.row_values(name, row_id).values()) for row_id in params[name].rows}
+            param_baselines[name] = ParamBaseline(name, params.field_names(name), rows)
         manifest = {
             "format": FORMAT_VERSION,
             "soulstruct": getattr(soulstruct, "__version__", "unknown"),
             "sources": sources,
             "params": {
-                name: {"rows": len(pb.rows), "duplicate_ids": params.duplicate_ids.get(name, 0)}
+                name: {
+                    "param_type": params[name].param_type,
+                    "rows": len(pb.rows),
+                    "duplicate_ids": params.duplicate_ids.get(name, 0),
+                }
                 for name, pb in param_baselines.items()
             },
         }

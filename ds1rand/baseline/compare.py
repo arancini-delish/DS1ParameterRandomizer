@@ -66,7 +66,7 @@ def diff_params(params: GameParams, baseline: Baseline) -> list[ParamDiff]:
         for row_id, values in pb.rows.items():
             if row_id not in disk:
                 continue
-            row = disk[row_id]
+            row = params.row_values(name, row_id)
             fields = {f: (v, row[f]) for f, v in zip(pb.fields, values) if row[f] != v}
             if fields:
                 diff.changed[row_id] = fields
@@ -104,7 +104,7 @@ def restore_params(params: GameParams, baseline: Baseline) -> list[str]:
         for row_id in diff.removed:
             params.add_row(diff.name, row_id)
         for row_id in diff.removed + list(diff.changed):
-            params.row(diff.name, row_id).update(**pb.row_values(row_id))
+            params.set_row_values(diff.name, row_id, pb.row_values(row_id))
         restored.append(diff.name)
     return restored
 

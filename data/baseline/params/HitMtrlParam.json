@@ -1,6 +1,6 @@
 {
 "param": "HitMtrlParam",
-"fields": ["aiVolumeRate", "spEffectIdOnHit0", "spEffectIdOnHit1", "footEffectHeightType:2", "footEffectDirType:2", "floorHeightType:2"],
+"fields": ["aiVolumeRate", "spEffectIdOnHit0", "spEffectIdOnHit1", "footEffectHeightType", "footEffectDirType", "floorHeightType"],
 "rows": {
 "0": [1.0,-1,-1,0,0,0],
 "1": [1.0,-1,-1,0,0,0],

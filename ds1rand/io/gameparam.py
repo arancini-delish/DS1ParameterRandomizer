@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from soulstruct.base.params.param import Param
+from soulstruct.containers import Binder
 from soulstruct.base.params.param_row import ParamRow
 from soulstruct.darksouls1r.params import GameParamBND
 
@@ -66,12 +67,16 @@ class GameParams:
 
     @classmethod
     def from_path(cls, path: Path | str) -> GameParams:
+        return cls.from_bytes(Path(path).read_bytes())
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> GameParams:
         # soulstruct warns once per repeated row ID; `duplicate_ids` records them instead.
         param_logger = logging.getLogger("soulstruct.base.params.param")
         level = param_logger.level
         param_logger.setLevel(logging.ERROR)
         try:
-            return cls(_GameParamBND.from_path(path))
+            return cls(_GameParamBND.from_bytes(data))
         finally:
             param_logger.setLevel(level)
 
@@ -144,3 +149,30 @@ class GameParams:
         self._bnd.write(path, force=True)
         _LOGGER.info("Wrote %s (re-serialized: %s)", path, ", ".join(changed) or "none")
         return changed
+
+
+class RawGameParam:
+    """`GameParam.parambnd.dcx` as raw `.param` entries, for byte-level editing with `ParamBinary`: nothing is
+    re-serialized through soulstruct, so rows with repeated IDs survive."""
+
+    def __init__(self, binder: Binder):
+        self._binder = binder
+        self._entries = {entry.stem: entry for entry in binder.entries if entry.name.endswith(".param")}
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> RawGameParam:
+        return cls(Binder.from_bytes(data))
+
+    @property
+    def names(self) -> list[str]:
+        return list(self._entries)
+
+    def param_bytes(self, name: str) -> bytes:
+        return bytes(self._entries[name])
+
+    def set_param_bytes(self, name: str, data: bytes) -> None:
+        self._entries[name].set_uncompressed_data(data)
+
+    def to_bytes(self) -> bytes:
+        """The whole binder, DCX-compressed like the original."""
+        return bytes(self._binder)

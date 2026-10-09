@@ -70,19 +70,46 @@ def source_hashes(sources: dict[str, dict[str, Path]]) -> dict[str, dict[str, di
     }
 
 
+def extract_sources(
+    sources: dict[str, dict[str, Path]], baseline: Baseline
+) -> tuple[dict[str, RefGraph], RefGraph]:
+    """Extract every external source from `sources` (see `source_files`); returns the per-source graphs and the full
+    graph (param edges + every source, without curated hardcoded references)."""
+    full = extract_param_edges(baseline)
+    graphs = {}
+    for file_name, (_, extract) in EXTERNAL_SOURCES.items():
+        graphs[file_name] = extract(sources[file_name], baseline, full)
+        _merge(full, graphs[file_name])
+    return graphs, full
+
+
 def extract_external(
     install: GameInstall, baseline: Baseline, catalogue_dir: Path = CATALOGUE_DIR, prefer_bak: bool = False
 ) -> dict[str, RefGraph]:
     """Extract every external source from vanilla game files and write it, with `sources.json`, to `catalogue_dir`."""
     sources = source_files(install, prefer_bak)
-    prior = extract_param_edges(baseline)
-    graphs = {}
-    for file_name, (_, extract) in EXTERNAL_SOURCES.items():
-        graphs[file_name] = extract(sources[file_name], baseline, prior)
-        graphs[file_name].write(catalogue_dir / file_name)
-        _merge(prior, graphs[file_name])
+    graphs, _ = extract_sources(sources, baseline)
+    for file_name, graph in graphs.items():
+        graph.write(catalogue_dir / file_name)
     (catalogue_dir / SOURCES_FILE).write_text(json.dumps(source_hashes(sources), indent=1) + "\n", encoding="utf-8")
     return graphs
+
+
+def build_install_graph(
+    install: GameInstall, catalogue_dir: Path = CATALOGUE_DIR, installed: Baseline | None = None
+) -> tuple[Baseline, RefGraph]:
+    """The reference graph of the files actually installed, which other mods may have changed: params from the
+    installed GameParam (or `installed`, e.g. the base ds1rand builds on), external sources re-extracted from the
+    installed files, plus curated hardcoded references. Returns the params (as a `Baseline`, so all catalogue code works
+    on them) and the graph."""
+    from ds1rand.io.gameparam import GameParams
+
+    if installed is None:
+        installed = Baseline.from_game_files(GameParams.from_path(install.gameparam), None, {})
+    _, graph = extract_sources(source_files(install), installed)
+    if (catalogue_dir / HARDCODED_FILE).is_file():
+        add_hardcoded_edges(catalogue_dir / HARDCODED_FILE, installed, graph)
+    return installed, graph
 
 
 def build_graph(baseline: Baseline | None = None, catalogue_dir: Path = CATALOGUE_DIR) -> RefGraph:

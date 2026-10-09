@@ -22,3 +22,31 @@ def vanilla_gameparam(install):
         if candidate.is_file() and sha256_file(candidate) == vanilla:
             return candidate
     pytest.skip("No vanilla GameParam in the install")
+
+
+class RedirectedInstall(GameInstall):
+    """The real install for events/maps/animations/AI, with GameParam and item text redirected to copies in `files`,
+    so sessions can write without touching the game folder."""
+
+    def __init__(self, root, files):
+        object.__setattr__(self, "root", root)
+        object.__setattr__(self, "_files", files)
+
+    @property
+    def gameparam(self):
+        return self._files / "GameParam.parambnd.dcx"
+
+    @property
+    def item_msgbnd(self):
+        return self._files / "item.msgbnd.dcx"
+
+
+@pytest.fixture
+def redirected_install(install, vanilla_gameparam, tmp_path):
+    """Redirected install starting from the vanilla GameParam and the installed item text."""
+    import shutil
+
+    redirected = RedirectedInstall(install.root, tmp_path)
+    shutil.copy(vanilla_gameparam, redirected.gameparam)
+    shutil.copy(install.item_msgbnd, redirected.item_msgbnd)
+    return redirected

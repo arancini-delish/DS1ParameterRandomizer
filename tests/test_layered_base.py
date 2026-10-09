@@ -1,7 +1,5 @@
 """Writing on top of other mods: byte-level params, base resolution, stripping and sessions (docs/MOD_COMPAT.md)."""
-import shutil
 from collections import Counter
-from pathlib import Path
 
 import pytest
 
@@ -11,7 +9,6 @@ from ds1rand.alloc.write import (
 )
 from ds1rand.baseline.store import Baseline
 from ds1rand.io.gameparam import GameParams, RawGameParam
-from ds1rand.io.install import GameInstall
 from ds1rand.io.msg import ItemText
 from ds1rand.io.parambinary import DuplicateRowError, ParamBinary, _Row
 
@@ -131,28 +128,11 @@ def test_text_apply_and_strip(install):
         assert restored.fmg_entries(fmg_id) == original.fmg_entries(fmg_id)
 
 
-class _RedirectedInstall(GameInstall):
-    """The real install for events/maps/animations/AI, with GameParam and item text redirected to copies."""
-
-    def __init__(self, root: Path, files: Path):
-        object.__setattr__(self, "root", root)
-        object.__setattr__(self, "_files", files)
-
-    @property
-    def gameparam(self) -> Path:
-        return self._files / "GameParam.parambnd.dcx"
-
-    @property
-    def item_msgbnd(self) -> Path:
-        return self._files / "item.msgbnd.dcx"
-
-
-def test_session_round_trip(install, modded_base, tmp_path):
+def test_session_round_trip(redirected_install, modded_base):
     from ds1rand.session import Session
 
-    redirected = _RedirectedInstall(install.root, tmp_path)
+    redirected = redirected_install
     redirected.gameparam.write_bytes(modded_base)
-    shutil.copy(install.item_msgbnd, redirected.item_msgbnd)
 
     session = Session.open(redirected)
     assert session.gameparam_base.state == "external"

@@ -13,6 +13,8 @@ Rows with repeated IDs in the base are protected: they cannot be edited or copie
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
+from pathlib import Path
 
 from ds1rand.alloc.allocator import Allocation, allocate
 from ds1rand.alloc.store import RowStore
@@ -71,12 +73,27 @@ class Session:
         return {"params": diff_params(GameParams.from_bytes(self.gameparam_base.data), self.vanilla),
                 "text": diff_text(ItemText.from_bytes(self.text_base.data), self.vanilla)}
 
-    def allocate(self, enabled, budget: RowBudget | None = None, params: set[str] | None = None) -> Allocation:
-        return allocate(self.graph, self.base, self.store, enabled, budget, self.ids, params)
+    def allocate(
+        self, enabled, budget: RowBudget | None = None, params: set[str] | None = None, rows: set | None = None
+    ) -> Allocation:
+        return allocate(self.graph, self.base, self.store, enabled, budget, self.ids, params, rows)
 
-    def write(self, info: dict | None = None) -> dict:
+    @cached_property
+    def usage(self):
+        """Features using each node of the installed graph (see `catalogue.usage`)."""
+        from ds1rand.catalogue.usage import compute_usage
+
+        return compute_usage(self.graph, self.base, all_nodes=True)
+
+    def footprint(self, feature: str, params: set[str] | None = None) -> set:
+        """Param rows `feature` uses (optionally only in `params`)."""
+        return {n for n, f in self.usage.items()
+                if n.kind == "param" and feature in f and (params is None or n.name in params)}
+
+    def write(self, info: dict | None = None, out_dir: Path | str | None = None) -> dict:
         """Write GameParam and item text (only if they have changes, or a previous ds1rand output must be replaced).
-        Returns the patch records written."""
+        With `out_dir`, the files (and their base copies and markers) go there, mirroring the install's layout, instead
+        of into the game folder. Returns the patch records written."""
         written = {}
         for path, resolution, apply, changes in (
             (self.install.gameparam, self.gameparam_base, lambda b: apply_params(b, self.store), self.store.changes()),
@@ -85,6 +102,9 @@ class Session:
             if not changes and resolution.state == "external":
                 continue
             data, patches = apply(resolution.data)
+            if out_dir is not None:
+                path = Path(out_dir) / path.relative_to(self.install.root)
+                path.parent.mkdir(parents=True, exist_ok=True)
             write_output(path, data, resolution.data, patches, info)
             written[path.name] = patches
         return written

@@ -35,7 +35,7 @@ def test_unresolved_counts(graph):
     counts = {}
     for u in graph.unresolved:
         counts[u.src.kind] = counts.get(u.src.kind, 0) + 1
-    assert counts == {"param": 308, "emevd": 3, "msb": 136, "tae": 95}
+    assert counts == {"param": 377, "emevd": 3, "msb": 136, "tae": 95, "lua": 2}
 
 
 def test_event_only_behaviors(graph):
@@ -101,3 +101,15 @@ def test_player_animations_add_speffects(graph):
 def test_no_inferred_behavior_variation_fallback(graph):
     # TAE shows severed parts (tails, heads) invoke no behaviors, so their variations are not linked to their body's.
     assert not [e for e in graph.edges if e.source == "behavior_variation" and e.confidence != "certain"]
+
+
+def test_ai_goals_link_npc_think_params_to_speffects(graph):
+    goal = Node("lua", "battle", 6520)
+    assert {"NpcThinkParam:6520", "NpcThinkParam:6521"} <= {str(e.src) for e in graph.users_of(goal)}
+    assert {str(e.dst) for e in graph.refs_of(goal)} == {"SpEffectParam:1500", "SpEffectParam:5444"}
+
+
+def test_ai_event_script_awards_item_lots(graph):
+    assert users(graph, Node.param("ItemLotParam", 5000)) == {
+        ("lua/script/global_event:0", "GetRateItem_IgnoreMultiPlay.arg0")
+    }

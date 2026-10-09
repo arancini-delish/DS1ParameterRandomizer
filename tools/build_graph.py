@@ -1,6 +1,6 @@
 """Build the reference graph, print a summary, and write it to `out/graph.json` for inspection.
 
-With `--extract`, first re-extract the external sources (EMEVD, MSB, TAE) from vanilla files into `data/catalogue/`. If other
+With `--extract`, first re-extract the external sources (EMEVD, MSB, TAE, AI Lua) from vanilla files into `data/catalogue/`. If other
 mods have modified the install, `--prefer-bak` reads their `<file>.bak` backups instead (check those are vanilla).
 
 Usage: uv run python tools/build_graph.py [--extract [game_dir] [--prefer-bak]] [--unresolved]

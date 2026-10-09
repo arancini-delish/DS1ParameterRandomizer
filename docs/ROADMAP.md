@@ -58,7 +58,7 @@ tests/
 - Output always = baseline + our edits: load disk, report, restore to baseline, then apply edits. This is the idempotence fix.
 - Provenance: built from a Steam-verified DSR install (2026-10-09). The verified GameParam is byte-identical to the maintainer's earlier `.bak`; values also spot-checked against known vanilla (starting-class weapons, weapon AR/weight, spell casts).
 
-### Phase 3 — Static reference graph (the core) (3a param edges, 3b EMEVD + MSB, 3c TAE done)
+### Phase 3 — Static reference graph (the core) (3a param edges, 3b EMEVD + MSB, 3c TAE, 3d AI Lua done)
 Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet`, `atk.targetSpEffect`, `emevd.ShootBullet`, `tae.InvokeBullet`):
 1. **Param→param** from Meta `Refs` (including conditional refs evaluated per row).
 2. **Computed IDs** not in Meta: BehaviorParam (`2xx` NPC = `behaviorVariationId*1000 + judgeId`), BehaviorParam_PC (weapon `behaviorVariationId`), arrow/bolt ammo → bullet via behaviour variation, SpEffect `replaceSpEffectId`/cycle/next fields, Goods throwables, ObjActParam, ThrowParam, NpcThinkParam, CharaInit.
@@ -72,6 +72,7 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - Param edges are rebuilt from the baseline on demand (0.3 s), so they are not committed. Edges from game files (EMEVD, MSB, TAE, Lua) need the install to extract, so 3b onwards commits those under `data/catalogue/`. `features_of` / `is_shared` move to Phase 4, which defines features.
 - 3b (done): `ds1rand/graph/emevd.py`, `ds1rand/graph/msb.py`, `ds1rand/graph/build.py` (`build_graph` = param edges + committed `data/catalogue/{emevd,msb}.json`; `extract_external` re-extracts and records every source file's SHA-256 in `data/catalogue/sources.json`). Provenance: the maintainer's install had item/enemy randomizers applied, so map files were read from their `.bak` copies (all from the same 2026-06-20 backup pass as the GameParam `.bak` proven identical to Steam-verified vanilla) and `common.emevd.dcx`, untouched since install. `tools/build_graph.py --extract --prefer-bak` reproduces it.
 - 3c (done): `ds1rand/io/tae.py` (DSR TAE 0x1000B reader; soulstruct only reads 0x1000C) and `ds1rand/graph/tae.py` (animation -> behavior/SpEffect edges, model -> animation edges; event parameter meanings measured against vanilla data, see AUDIT 5). Committed as `data/catalogue/tae.json`. Removed 3a's inferred severed-part variation fallback: TAE shows those models invoke no behaviors.
+- 3d (done): `ds1rand/io/lua.py` (Lua 5.0 chunk reader + literal call-argument scan) and `ds1rand/graph/lua.py` (AI goal scripts -> SpEffect / ItemLot, NpcThinkParam -> goal scripts). Committed as `data/catalogue/lua.json`. Since 3d all external sources are extracted from the Steam-verified live install (`sources.json` records live file names); the earlier `.bak`-based extraction is byte-identical.
 
 ### Phase 4 — Catalogue & classification
 - Every node in scope gets `feature` (ring, player_spell, enemy_spell, env_spell, player_projectile, enemy_projectile, env_projectile, enemy_behaviour, weapon, other/pinned) and `subtype` (see register). Rows used by multiple features are recorded with all usages.

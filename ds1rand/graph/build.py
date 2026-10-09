@@ -1,6 +1,6 @@
 """Assembling the full reference graph.
 
-Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, TAE)
+Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, TAE, AI Lua)
 need vanilla game files to extract, so they are extracted once with `extract_external` and committed under
 `data/catalogue/`, together with `sources.json` (SHA-256 of every file read); `build_graph` loads them from there.
 
@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ds1rand.baseline.store import Baseline, sha256_file
 from ds1rand.graph.emevd import event_files, extract_emevd_edges
+from ds1rand.graph.lua import extract_lua_edges, luabnd_files
 from ds1rand.graph.model import RefGraph
 from ds1rand.graph.msb import extract_msb_edges, map_files
 from ds1rand.graph.params import extract_param_edges
@@ -40,6 +41,7 @@ EXTERNAL_SOURCES = {
         lambda files, baseline, prior: extract_msb_edges(files, row_ids(baseline)),
     ),
     "tae.json": (lambda install: anibnd_files(install.root / "chr"), extract_tae_edges),
+    "lua.json": (lambda install: luabnd_files(install.root / "script"), extract_lua_edges),
 }
 
 

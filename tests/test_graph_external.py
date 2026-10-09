@@ -1,0 +1,81 @@
+"""Graph edges from EMEVD and MSB. The committed `data/catalogue` files are tested without an install; re-extraction is
+compared against them when a vanilla install is available."""
+import pytest
+
+from ds1rand.baseline.store import Baseline
+from ds1rand.graph.build import CATALOGUE_DIR, EXTERNAL_SOURCES, build_graph
+from ds1rand.graph.model import Node, RefGraph
+
+
+@pytest.fixture(scope="module")
+def baseline() -> Baseline:
+    return Baseline.load()
+
+
+@pytest.fixture(scope="module")
+def graph(baseline) -> RefGraph:
+    return build_graph(baseline)
+
+
+def users(graph, node):
+    return {(str(e.src), e.field) for e in graph.users_of(node)}
+
+
+def test_external_edges_point_at_existing_rows(baseline):
+    for file_name in EXTERNAL_SOURCES:
+        external = RefGraph.load(CATALOGUE_DIR / file_name)
+        assert external.edges
+        for edge in external.edges:
+            if edge.dst.kind == "param":
+                assert edge.dst.id in baseline.params[edge.dst.name].rows, edge
+
+
+def test_unresolved_counts(graph):
+    """Vanilla dangling references per source; a change here means extraction rules changed."""
+    counts = {}
+    for u in graph.unresolved:
+        counts[u.src.kind] = counts.get(u.src.kind, 0) + 1
+    assert counts == {"param": 291, "emevd": 3, "msb": 136}
+
+
+def test_event_only_behaviors(graph):
+    # Trap/hazard behaviors that no param references, only event scripts.
+    assert users(graph, Node.param("BehaviorParam", 5070)) == {
+        ("emevd/m15_00_00_00:11505260", "ShootProjectile.behavior_id"),
+        ("emevd/m15_00_00_00:11505270", "ShootProjectile.behavior_id"),
+    }
+    assert ("BehaviorParam:5000", "CreateHazard.behavior_param_id") in {
+        (str(e.dst), e.field) for e in graph.refs_of(Node("emevd", "m10_01_00_00", 11010008))
+    }
+
+
+def test_event_arguments_are_substituted(graph):
+    # KillBoss in a templated event resolves to the boss area through RunEvent arguments.
+    assert ("emevd/m10_01_00_00:11010001", "KillBoss.game_area_param_id") in users(
+        graph, Node.param("GameAreaParam", 1010800)
+    )
+
+
+def test_map_entries(graph):
+    assert ("msb/m15_01_00_00/c0000_0003:6010", "character_id") in users(graph, Node.param("NpcParam", 6010))
+    # Treasures sharing a name get distinct nodes.
+    assert ("msb/m10_00_00_00/takara#11:-1", "item_lot_1") in users(graph, Node.param("ItemLotParam", 1000120))
+    character_models = {e.dst.name for e in graph.edges if e.src.kind == "msb" and e.dst.kind == "model"}
+    assert "c0000" in character_models and len(character_models) > 50
+
+
+def test_re_extraction_matches_committed(install, baseline, tmp_path):
+    """Re-extract from the same files recorded in `sources.json` (live or `.bak`); skip if those are not available."""
+    import json
+
+    from ds1rand.graph.build import SOURCES_FILE, extract_external, source_files, source_hashes
+
+    recorded = json.loads((CATALOGUE_DIR / SOURCES_FILE).read_text(encoding="utf-8"))
+    prefer_bak = any(entry["file"].endswith(".bak") for files in recorded.values() for entry in files.values())
+    if source_hashes(source_files(install, prefer_bak)) != recorded:
+        pytest.skip("Install does not have the recorded vanilla source files")
+    extract_external(install, baseline, tmp_path, prefer_bak)
+    for file_name in [*EXTERNAL_SOURCES, SOURCES_FILE]:
+        assert (tmp_path / file_name).read_text(encoding="utf-8") == (CATALOGUE_DIR / file_name).read_text(
+            encoding="utf-8"
+        ), file_name

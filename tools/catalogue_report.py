@@ -29,8 +29,7 @@ def main() -> None:
 
     used = {p: sorted(n.id for n in usage if n.name == p) for p in ("Bullet", "Magic")}
     for param, counts in coverage(baseline, used).items():
-        print(f"
-{param} subtypes ({sum(counts.values())} used rows):")
+        print(f"\n{param} subtypes ({sum(counts.values())} used rows):")
         for subtype, count in counts.most_common():
             print(f"  {count:5}  {subtype}")
 

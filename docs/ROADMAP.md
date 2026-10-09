@@ -128,8 +128,8 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - SpEffects come from any fitting SpEffect, with ring-style text in the description.
    - See AUDIT 39-40.
 7. **Body / face data** (tab):
-   - Randomizes NPC face data and the player's character creation templates, with one strength slider for each. Existing saves keep their face and physique.
-   - NPC body proportions get their own slider; player body too, if character creation reads it from params (AUDIT 42).
+   - Randomizes NPC face data and the player's character creation face templates, with one strength slider for each. Existing saves keep their face.
+   - Body has its own slider: each of the nine physique options gets a random set of body scale changes, and NPC proportions are randomized too (AUDIT 42).
    - At full strength every value is drawn within sensible extremes (the vanilla range per field).
    - See AUDIT 41-42.
 

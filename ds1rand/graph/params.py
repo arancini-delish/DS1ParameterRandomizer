@@ -105,17 +105,36 @@ def extract_param_edges(baseline: Baseline, graph: RefGraph | None = None) -> Re
                 candidates = _resolve_side(name, [t.param for t in targets if t.applies(row)])
                 if not candidates:
                     continue  # condition selects no target (e.g. a category this field does not reference)
-                found = [(t, r) for t in candidates if (r := _find_row(t, value, row_ids[t])) is not None]
-                if not found:
-                    graph.unresolved.append(Unresolved(src, field, value, tuple(candidates), "missing row"))
-                    continue
-                confidence = "certain" if len(found) == 1 else "ambiguous"
                 source = "soulstruct" if field in EXTRA_REFS.get(name, {}) else "meta"
-                for target, target_id in found:
-                    graph.add(Edge(src, Node.param(target, target_id), field, source, confidence))
+                add_reference(graph, row_ids, src, field, value, candidates, source)
 
     _behavior_variation_edges(baseline, graph)
     return graph
+
+
+def add_reference(
+    graph: RefGraph,
+    row_ids: dict[str, set[int]],
+    src: Node,
+    field: str,
+    value: int,
+    candidates: list[str],
+    source: str,
+    optional: bool = False,
+) -> None:
+    """Add edges from `src` to the row `value` in each candidate param that has it (ambiguous if several), or record
+    it as unresolved unless `optional` (a missing row is normal, e.g. objects without ObjectParam rows). Null values
+    are ignored."""
+    if value in NULL_VALUES:
+        return
+    found = [(t, r) for t in candidates if (r := _find_row(t, value, row_ids[t])) is not None]
+    if not found:
+        if not optional:
+            graph.unresolved.append(Unresolved(src, field, value, tuple(candidates), "missing row"))
+        return
+    confidence = "certain" if len(found) == 1 else "ambiguous"
+    for target, target_id in found:
+        graph.add(Edge(src, Node.param(target, target_id), field, source, confidence))
 
 
 def _behavior_variation_edges(baseline: Baseline, graph: RefGraph) -> None:

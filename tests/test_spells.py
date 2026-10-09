@@ -57,7 +57,7 @@ def test_payload_is_new_rows_with_scaled_damage(session):
             old = session.base.params["AtkParam_Pc"].row_values(donor_attack)
             new = session.store.values("AtkParam_Pc", new_attack)
             for f in ("atkMag", "atkFire", "atkThun", "atkPhys"):
-                assert new[f] in (round(old[f] * r.power), round(old[f] * r.power * 0.9))
+                assert new[f] == round(old[f] * r.power)
 
 
 def test_chains_are_copied_and_relinked(session):
@@ -70,7 +70,8 @@ def test_chains_are_copied_and_relinked(session):
         while node > 0 and node not in seen and session.store.exists("Bullet", node):
             seen.append(node)
             node = session.store.values("Bullet", node)["HitBulletID"]
-        assert len(seen) == len(donor_chain) and all(session.store.is_new("Bullet", b) for b in seen)
+        extra = len(bullet_chain(session.base, r.chained_from[1])[:6]) if r.chained_from else 0
+        assert len(seen) == len(donor_chain) + extra and all(session.store.is_new("Bullet", b) for b in seen)
 
 
 def test_npc_spells_have_no_costs(session):
@@ -101,3 +102,62 @@ def test_write_and_read_back(redirected_install):
     params = GameParams.from_path(redirected_install.gameparam)
     for r in results:
         assert params.row_values("Magic", r.magic_id)["refId"] == r.root
+
+
+def chain_of(session, root):
+    node, seen = root, []
+    while node > 0 and node not in seen and session.store.exists("Bullet", node):
+        seen.append(node)
+        node = session.store.values("Bullet", node)["HitBulletID"]
+    return seen
+
+
+def test_visual_pool_spans_schools(redirected_install):
+    from ds1rand.features.spells import _SpellBuilder
+
+    builder = _SpellBuilder(Session.open(redirected_install), SpellConfig(), random.Random(0))
+    schools = {builder.vanilla[m]["ezStateBehaviorType"] for m, _ in builder.visual_pool}
+    assert schools == {0, 1, 2} and len(builder.visual_pool) > 40
+
+
+def test_motion_changes_only_moving_bullets(session):
+    from ds1rand.catalogue.subtypes import classify_bullet
+
+    results = run(session, motion_chance=1.0, chain_chance=0, visual_chance=0)
+    changed = [r for r in results if r.motion]
+    assert changed
+    for r in changed:
+        donor_root = session.base.params["Magic"].row_values(r.donor)["refId"]
+        motion = classify_bullet(session.base.params["Bullet"].row_values(donor_root)).motion
+        assert motion in ("linear", "homing", "lobbed")
+
+
+def test_chained_effects_extend_the_chain(session):
+    results = run(session, chain_chance=1.0, motion_chance=0, visual_chance=0, status_chance=0)
+    chained = [r for r in results if r.chained_from]
+    assert chained
+    for r in chained:
+        donor_chain = bullet_chain(session.base, session.base.params["Magic"].row_values(r.donor)["refId"])
+        child_chain = bullet_chain(session.base, r.chained_from[1])[:6]
+        assert len(chain_of(session, r.root)) == len(donor_chain) + len(child_chain)
+
+
+def test_chained_child_damage_is_scaled(session):
+    from ds1rand.features.spells import CHILD_POWER
+
+    results = run(session, chain_chance=1.0, motion_chance=0, visual_chance=0, status_chance=0)
+    checked = 0
+    for r in [r for r in results if r.chained_from]:
+        child = bullet_chain(session.base, r.chained_from[1])[0]
+        attack = session.base.params["Bullet"].row_values(child)["atkId_Bullet"]
+        if attack <= 0 or attack not in session.base.params["AtkParam_Pc"].rows:
+            continue
+        donor_length = len(bullet_chain(session.base, session.base.params["Magic"].row_values(r.donor)["refId"]))
+        copied = chain_of(session, r.root)[donor_length]
+        old = session.base.params["AtkParam_Pc"].row_values(attack)
+        new = session.store.values("AtkParam_Pc", session.store.values("Bullet", copied)["atkId_Bullet"])
+        assert 0 < r.child_power <= POWER_LIMITS[1] * CHILD_POWER
+        for f in ("atkMag", "atkFire", "atkThun", "atkPhys"):
+            assert new[f] == round(old[f] * r.child_power)
+        checked += 1
+    assert checked

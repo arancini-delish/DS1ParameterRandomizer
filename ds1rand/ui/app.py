@@ -118,21 +118,26 @@ class SpellsTab(QtWidgets.QWidget):
         options.addWidget(self.distribution)
         self.player = QtWidgets.QCheckBox("Player spells")
         self.enemy = QtWidgets.QCheckBox("NPC caster spells")
-        self.cross_school = QtWidgets.QCheckBox("Visuals may come from other schools")
+        self.cross_school = QtWidgets.QCheckBox("Visuals may come from any school")
         self.write_summaries = QtWidgets.QCheckBox("Write tier and casts into the spell summaries")
         for box in (self.player, self.enemy, self.cross_school, self.write_summaries):
             box.toggled.connect(self.changed)
             options.addWidget(box)
         chances = QtWidgets.QFormLayout()
         self.visual_chance = self._percent()
+        self.motion_chance = self._percent()
+        self.chain_chance = self._percent()
         self.status_chance = self._percent()
         chances.addRow("Chance of new visuals", self.visual_chance)
+        chances.addRow("Chance of new speed / homing", self.motion_chance)
+        chances.addRow("Chance of a chained effect", self.chain_chance)
         chances.addRow("Chance of an added status effect", self.status_chance)
         options.addLayout(chances)
         layout.addWidget(self.options)
 
-        self.results = QtWidgets.QTableWidget(0, 6)
-        self.results.setHorizontalHeaderLabels(["Spell", "Owner", "Tier", "Casts", "Payload from", "Power"])
+        self.results = QtWidgets.QTableWidget(0, 9)
+        self.results.setHorizontalHeaderLabels(["Spell", "Owner", "Tier", "Casts", "Payload from", "Looks like",
+                                                "Motion", "Chained effect", "Power"])
         self.results.horizontalHeader().setStretchLastSection(True)
         self.results.verticalHeader().setVisible(False)
         self.results.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -152,11 +157,12 @@ class SpellsTab(QtWidgets.QWidget):
     def settings(self) -> SpellsSettings:
         return SpellsSettings(self.enabled.isChecked(), self.distribution.values(), self.player.isChecked(),
                               self.enemy.isChecked(), self.visual_chance.value() / 100, self.cross_school.isChecked(),
-                              self.status_chance.value() / 100, self.write_summaries.isChecked())
+                              self.status_chance.value() / 100, self.write_summaries.isChecked(),
+                              self.motion_chance.value() / 100, self.chain_chance.value() / 100)
 
     def apply(self, settings: SpellsSettings) -> None:
         widgets = (self.enabled, self.player, self.enemy, self.cross_school, self.write_summaries, self.visual_chance,
-                   self.status_chance, self.distribution)
+                   self.status_chance, self.motion_chance, self.chain_chance, self.distribution)
         for widget in widgets:
             widget.blockSignals(True)
         self.enabled.setChecked(settings.enabled)
@@ -166,10 +172,18 @@ class SpellsTab(QtWidgets.QWidget):
         self.write_summaries.setChecked(settings.write_summaries)
         self.visual_chance.setValue(round(settings.visual_chance * 100))
         self.status_chance.setValue(round(settings.status_chance * 100))
+        self.motion_chance.setValue(round(settings.motion_chance * 100))
+        self.chain_chance.setValue(round(settings.chain_chance * 100))
         self.distribution.set_values(settings.tier_weights)
         for widget in widgets:
             widget.blockSignals(False)
         self.options.setEnabled(settings.enabled)
+
+    @staticmethod
+    def _name(result: RunResult, magic_id: int | None) -> str:
+        if magic_id is None:
+            return "-"
+        return result.spell_names.get(magic_id) or f"NPC spell {magic_id}"
 
     def show_results(self, result: RunResult) -> None:
         self.results.setRowCount(len(result.spells))
@@ -177,8 +191,10 @@ class SpellsTab(QtWidgets.QWidget):
             name = result.spell_names.get(spell.magic_id) or f"NPC spell {spell.magic_id}"
             donor = result.spell_names.get(spell.donor) or f"NPC spell {spell.donor}"
             casts = str(spell.casts) if spell.owner == "player" else "-"
-            for col, text in enumerate((name, spell.owner, spell.tier.name.title(), casts, donor,
-                                        f"{spell.power:.2f}")):
+            looks = self._name(result, spell.visual_from)
+            chained = self._name(result, spell.chained_from[0] if spell.chained_from else None)
+            for col, text in enumerate((name, spell.owner, spell.tier.name.title(), casts, donor, looks,
+                                        spell.motion or "-", chained, f"{spell.power:.2f}")):
                 self.results.setItem(row, col, QtWidgets.QTableWidgetItem(text))
         self.results.resizeColumnsToContents()
 

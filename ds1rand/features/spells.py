@@ -6,8 +6,13 @@ projectile, a pyromancy mist stays a mist, so the cast animation always fits wha
     payload   a donor spell of the same category (and delivery: bullet or SpEffect) is drawn; its bullet chain (or its
               SpEffect) is copied into new rows for this spell, so e.g. Soul Arrow may fire a Soul Spear or a Homing
               Soulmass; sorcery projectiles may take a charged-cast donor's payload too
-    visuals   with `visual_chance`, the root bullet takes another spell's projectile / impact / repel particles
-              (same school by default)
+    visuals   with `visual_chance`, the root bullet takes the particles of a bullet from a curated pool of every
+              spell bullet (any school unless `cross_school_visuals` is off); sometimes a later bullet's too
+    motion    with `motion_chance`, moving root bullets (linear, homing, lobbed) get a new speed (x0.6-1.6) and homing
+              strength, or homing added to straight shots; faster and homing shots cost some power
+    chains    with `chain_chance`, the end of the chain spawns another spell's bullet chain (e.g. a Soul Spear that
+              leaves a Poison Mist, a Combustion that bursts into a homing bolt); part of the spell's power moves to
+              that child, so weak spells leave weak effects
     status    with `status_chance`, the last damaging bullet also applies an on-hit status effect (poison, bleed, ...)
               drawn from those vanilla spells and weapons use
     power     a tier (Weak / Standard / Strong / Legendary) and costs drawn from what the category uses in vanilla;
@@ -35,7 +40,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 
 from ds1rand.catalogue.effects import EffectClassifier
-from ds1rand.catalogue.subtypes import CAST_ANIMATIONS, SCHOOLS, bullet_chain
+from ds1rand.catalogue.subtypes import CAST_ANIMATIONS, SCHOOLS, bullet_chain, classify_bullet
 from ds1rand.graph.model import Node
 from ds1rand.session import Session
 
@@ -68,6 +73,22 @@ REQUIREMENT_POWER_PER_POINT = 0.02
 STATUS_DAMAGE_COST = 0.9  # a spell that also applies a status hits a little softer
 POWER_LIMITS = (0.4, 2.5)  # final power factor range
 
+# Motion changes (moving root bullets only): speed x range, homing strength x range, chance to add homing to straight
+# shots. Faster shots and added homing cost power.
+SPEED_FIELDS = ("initVellocity", "maxVellocity", "minVellocity", "accelInRange", "accelOutRange")
+SPEED_RANGE = (0.6, 1.6)
+SPEED_POWER_COST = 0.15  # per 1.0 of speed factor above (or refund below) 1
+HOMING_RANGE = (0.5, 2.0)
+ADD_HOMING_CHANCE = 0.3
+ADDED_HOMING_ANGLE = (2, 8)
+ADDED_HOMING_POWER = 0.9
+
+# Chained effects: the end of the chain spawns another spell's bullet chain (up to MAX_CHAIN bullets); the parent keeps
+# CHAINED_PARENT_POWER of its power, the child gets CHILD_POWER x the spell's power applied to its donor's damage.
+MAX_CHAIN = 6
+CHAINED_PARENT_POWER = 0.8
+CHILD_POWER = 0.5
+
 # Cast categories whose spells may swap payloads (sorcery projectiles: normal and charged casts).
 FAMILIES = {"projectile": "projectile", "projectile_charged": "projectile"}
 
@@ -82,6 +103,10 @@ DEFAULT_PINNED = frozenset({
 
 DAMAGE_FIELDS = ("atkPhys", "atkMag", "atkFire", "atkThun")
 SCALED_GROUPS = ("attack", "defense", "regen", "max_stats")
+
+
+def _clamp(power: float) -> float:
+    return min(max(power, POWER_LIMITS[0]), POWER_LIMITS[1])
 
 
 def usage_power(casts: int, continuous: bool) -> float:
@@ -104,8 +129,10 @@ class SpellConfig:
     player: bool = True
     enemy: bool = True
     pinned: frozenset[int] = DEFAULT_PINNED
-    visual_chance: float = 0.5
-    cross_school_visuals: bool = False
+    visual_chance: float = 0.6
+    cross_school_visuals: bool = True
+    motion_chance: float = 0.4
+    chain_chance: float = 0.35
     status_chance: float = 0.15
     two_slot_chance: float = 0.15
     charged_upgrade_chance: float = 0.5
@@ -122,9 +149,12 @@ class SpellResult:
     casts: int
     slots: int
     requirement: int
-    power: float
+    power: float  # final power factor of the spell's own bullets / effect
     root: int  # new root bullet or SpEffect
     visual_from: int | None = None
+    motion: str = ""
+    chained_from: tuple[int, int] | None = None  # (spell, bullet) whose chain was attached
+    child_power: float = 0.0  # power factor of the attached chain
     status: int | None = None
     summary: str = ""
     rows: Counter = field(default_factory=Counter)  # new rows per param
@@ -144,6 +174,9 @@ class _SpellBuilder:
         self.enemy_spells = sorted(n.id for n in session.footprint("enemy", {"Magic"}) if n.id not in self.player_spells)
         self.vanilla = {m: self.magic.row_values(m) for m in self.player_spells + self.enemy_spells}
         self.status_pool = self._status_pool()
+        self.visual_pool = self._visual_pool()
+        self.chain_pool = self._chain_pool()
+        self._current_donor_root = 0
 
     # Pools
 
@@ -160,12 +193,45 @@ class _SpellBuilder:
                 if self.family(m) == self.family(magic_id) and self.vanilla[m]["refCategory"] == v["refCategory"]
                 and self.vanilla[m]["ezStateBehaviorType"] == v["ezStateBehaviorType"] and m not in self.config.pinned]
 
-    def visuals(self, magic_id: int) -> list[int]:
+    def _spell_bullets(self) -> list[tuple[int, int]]:
+        """(spell, bullet) for every bullet in the chain of every used spell, player and NPC."""
+        pairs = []
+        for magic_id, values in self.vanilla.items():
+            if values["refCategory"] == 1:
+                pairs += [(magic_id, b) for b in bullet_chain(self.base, values["refId"])]
+        return pairs
+
+    def _visual_pool(self) -> list[tuple[int, int]]:
+        """Curated visuals: every spell bullet with a visible projectile particle, one entry per distinct particle
+        set. Spell particles load wherever the player casts, so any of them can go on any spell."""
+        seen, pool = set(), []
+        bullets = self.base.params["Bullet"]
+        for magic_id, bullet in self._spell_bullets():
+            values = bullets.row_values(bullet)
+            key = (values["sfxId_Bullet"], values["sfxId_Hit"], values["sfxId_Flick"])
+            if values["sfxId_Bullet"] > 0 and key not in seen:
+                seen.add(key)
+                pool.append((magic_id, bullet))
+        return pool
+
+    def _visuals_for(self, magic_id: int) -> list[tuple[int, int]]:
+        if self.config.cross_school_visuals:
+            return self.visual_pool
         school = self.vanilla[magic_id]["ezStateBehaviorType"]
-        return [m for m in self.player_spells
-                if self.vanilla[m]["refCategory"] == 1 and m not in self.config.pinned
-                and (self.config.cross_school_visuals or self.vanilla[m]["ezStateBehaviorType"] == school)
-                and self.base.params["Bullet"].row_values(self.vanilla[m]["refId"])["sfxId_Bullet"] > 0]
+        return [p for p in self.visual_pool if self.vanilla[p[0]]["ezStateBehaviorType"] == school] or self.visual_pool
+
+    def _chain_pool(self) -> list[tuple[int, int]]:
+        """Bullets that can be spawned at the end of another spell's chain: any spell bullet except orbiting and
+        attached ones (they need their owner) and streams (one child per particle)."""
+        pool, seen = [], set()
+        bullets = self.base.params["Bullet"]
+        for magic_id, bullet in self._spell_bullets():
+            cls = classify_bullet(bullets.row_values(bullet))
+            if bullet in seen or cls.motion in ("orbit", "attached") or "stream" in cls.qualifiers:
+                continue
+            seen.add(bullet)
+            pool.append((magic_id, bullet))
+        return pool
 
     def _status_pool(self) -> list[int]:
         used = set()
@@ -214,10 +280,11 @@ class _SpellBuilder:
                 power *= CHARGED_CAST_POWER
             updates.update(maxQuantity=casts, slotLength=slots, refType=cast_type)
 
-        power = min(max(power, POWER_LIMITS[0]), POWER_LIMITS[1])
+        power = _clamp(power)
         result = SpellResult(magic_id, owner, tier, donor, CAST_ANIMATIONS.get(cast_type, "?"), casts, slots,
                              requirement, power, 0)
         if d["refCategory"] == 1:
+            self._current_donor_root = d["refId"]
             result.root = self._copy_chain(d["refId"], power, result)
         else:
             result.root = self._copy_speffect(d["refId"], power, result, root=True)
@@ -229,16 +296,84 @@ class _SpellBuilder:
 
     def _copy_chain(self, root: int, power: float, result: SpellResult) -> int:
         chain = bullet_chain(self.base, root)
-        new_ids = {}
-        for i, bullet in enumerate(chain):
-            new_ids[bullet] = self.ids.allocate("Bullet", S16_MAX if i == 0 else 2**31 - 1)
-            self.store.add("Bullet", new_ids[bullet], copy_from=bullet)
-            result.rows["Bullet"] += 1
+        root_class = classify_bullet(self.base.params["Bullet"].row_values(root))
 
-        status_added = False
+        # Decide motion and chained effects first: both move power around.
+        spell_power = power
+        motion = self._motion(root_class, result)
+        if motion:
+            power *= motion.pop("_power")
+        child = None
+        if (self.chain_pool and "stream" not in root_class.qualifiers and len(chain) <= MAX_CHAIN
+                and self.rng.random() < self.config.chain_chance):
+            child = self.rng.choice(self.chain_pool)
+            result.chained_from = child
+            power *= CHAINED_PARENT_POWER
+
         if self.status_pool and self.rng.random() < self.config.status_chance:
             result.status = self.rng.choice(self.status_pool)
             power *= STATUS_DAMAGE_COST
+        power = _clamp(power)
+        result.power = power
+        new_ids = self._copy_bullets(chain, power, result, narrow_root=True, add_status=True)
+        new_root = new_ids[chain[0]]
+        if motion:
+            self.store.set("Bullet", new_root, motion)
+
+        if child is not None:
+            last = new_ids[chain[-1]]
+            if self.store.values("Bullet", last)["HitBulletID"] <= 0:  # chains that loop back keep their loop
+                child_chain = bullet_chain(self.base, child[1])[:MAX_CHAIN]
+                result.child_power = spell_power * CHILD_POWER
+                child_ids = self._copy_bullets(child_chain, result.child_power, result)
+                child_last = child_ids[child_chain[-1]]
+                if self.store.values("Bullet", child_last)["HitBulletID"] not in child_ids.values():
+                    self.store.set("Bullet", child_last, {"HitBulletID": -1})  # cut where the copy was truncated
+                self.store.set("Bullet", last, {"HitBulletID": child_ids[child_chain[0]]})
+            else:
+                result.chained_from = None
+                result.power = _clamp(power / CHAINED_PARENT_POWER)
+
+        if self.visual_pool and self.rng.random() < self.config.visual_chance:
+            source = self.rng.choice(self._visuals_for(result.magic_id))
+            sfx = self.base.params["Bullet"].row_values(source[1])
+            self.store.set("Bullet", new_root, {f: sfx[f] for f in ("sfxId_Bullet", "sfxId_Hit", "sfxId_Flick")})
+            result.visual_from = source[0]
+            if len(chain) > 1 and self.rng.random() < self.config.visual_chance / 2:
+                impact = self.rng.choice(self._visuals_for(result.magic_id))
+                hit = self.base.params["Bullet"].row_values(impact[1])
+                self.store.set("Bullet", new_ids[self.rng.choice(chain[1:])],
+                               {f: hit[f] for f in ("sfxId_Bullet", "sfxId_Hit")})
+        return new_root
+
+    def _motion(self, root_class, result: SpellResult) -> dict:
+        """Speed / homing changes for moving root bullets; "_power" is the power factor they cost."""
+        if root_class.motion not in ("linear", "homing", "lobbed") or self.rng.random() >= self.config.motion_chance:
+            return {}
+        values = self.base.params["Bullet"].row_values(self._current_donor_root)
+        speed = self.rng.uniform(*SPEED_RANGE)
+        updates = {f: values[f] * speed for f in SPEED_FIELDS if values[f]}
+        cost = 1 - SPEED_POWER_COST * max(speed - 1, 0) + SPEED_POWER_COST * max(1 - speed, 0)
+        if root_class.motion == "homing":
+            updates["homingAngle"] = max(1, int(round(values["homingAngle"] * self.rng.uniform(*HOMING_RANGE))))
+        elif root_class.motion == "linear" and "stream" not in root_class.qualifiers \
+                and self.rng.random() < ADD_HOMING_CHANCE:
+            updates["homingAngle"] = self.rng.randint(*ADDED_HOMING_ANGLE)
+            cost *= ADDED_HOMING_POWER
+        result.motion = f"speed x{speed:.2f}" + (f", homing {updates['homingAngle']}" if "homingAngle" in updates else "")
+        updates["_power"] = cost
+        return updates
+
+    def _copy_bullets(self, chain: list[int], power: float, result: SpellResult, narrow_root: bool = False,
+                      add_status: bool = False) -> dict[int, int]:
+        """Copy `chain` into new Bullet rows (relinked among themselves), with scaled attack and effect copies."""
+        new_ids = {}
+        for i, bullet in enumerate(chain):
+            new_ids[bullet] = self.ids.allocate("Bullet", S16_MAX if narrow_root and i == 0 else 2**31 - 1)
+            self.store.add("Bullet", new_ids[bullet], copy_from=bullet)
+            result.rows["Bullet"] += 1
+
+        status_added = not (add_status and result.status)
         damaging = [b for b in chain if self.base.params["Bullet"].row_values(b)["atkId_Bullet"] > 0]
 
         for bullet in chain:
@@ -258,15 +393,9 @@ class _SpellBuilder:
                     status_added = True
             if updates:
                 self.store.set("Bullet", new_ids[bullet], updates)
-        if result.status and not status_added:
+        if add_status and result.status and not status_added:
             result.status = None
-
-        if self.rng.random() < self.config.visual_chance:
-            source = self.rng.choice(self.visuals(result.magic_id) or [result.donor])
-            sfx = self.base.params["Bullet"].row_values(self.vanilla[source]["refId"])
-            self.store.set("Bullet", new_ids[root], {f: sfx[f] for f in ("sfxId_Bullet", "sfxId_Hit", "sfxId_Flick")})
-            result.visual_from = source
-        return new_ids[root]
+        return new_ids
 
     def _copy_attack(self, attack: int, power: float, result: SpellResult) -> int:
         values = self.base.params["AtkParam_Pc"].row_values(attack)
@@ -315,6 +444,8 @@ class _SpellBuilder:
                          + (", 2 slots" if result.slots == 2 else ""))
         if result.status:
             parts.append("inflicts status")
+        if result.chained_from:
+            parts.append("chained effect")
         return " - ".join(parts)
 
 

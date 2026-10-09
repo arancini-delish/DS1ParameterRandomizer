@@ -33,10 +33,12 @@ class SpellsSettings:
     tier_weights: tuple[float, float, float, float] = SPELL_PRESETS["Standard"]
     player: bool = True
     enemy: bool = True
-    visual_chance: float = 0.5
-    cross_school_visuals: bool = False
+    visual_chance: float = 0.6
+    cross_school_visuals: bool = True
     status_chance: float = 0.15
     write_summaries: bool = True
+    motion_chance: float = 0.4
+    chain_chance: float = 0.35
 
 
 @dataclass

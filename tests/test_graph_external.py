@@ -35,7 +35,7 @@ def test_unresolved_counts(graph):
     counts = {}
     for u in graph.unresolved:
         counts[u.src.kind] = counts.get(u.src.kind, 0) + 1
-    assert counts == {"param": 291, "emevd": 3, "msb": 136}
+    assert counts == {"param": 308, "emevd": 3, "msb": 136, "tae": 95}
 
 
 def test_event_only_behaviors(graph):
@@ -79,3 +79,25 @@ def test_re_extraction_matches_committed(install, baseline, tmp_path):
         assert (tmp_path / file_name).read_text(encoding="utf-8") == (CATALOGUE_DIR / file_name).read_text(
             encoding="utf-8"
         ), file_name
+
+
+def test_tae_common_behaviors_reach_rows_outside_the_id_formula(graph):
+    # Rat (c1200) animations invoke behavior rows directly; these do not follow 200000000 + variation * 1000 + judge.
+    assert ("tae/c1200:701", "InvokeCommonBehavior.row") in users(graph, Node.param("BehaviorParam", 20108))
+
+
+def test_placed_enemy_reaches_its_bullets_through_animations(graph):
+    # Stray Demon: MSB placement -> model -> animation -> behavior (by judge ID) -> bullet.
+    placement = Node("msb", "m18_01_00_00/c2230_0000", 1810810)
+    assert Node("model", "c2230", 0) in graph.reach(placement)
+    assert ("tae/c2230:3006", "InvokeBulletBehavior.judge") in users(graph, Node.param("BehaviorParam", 222300160))
+    assert {n for n in graph.reach(placement) if n.kind == "param" and n.name == "Bullet"}
+
+
+def test_player_animations_add_speffects(graph):
+    assert ("tae/c0000:1500", "AddSpEffect66.row") in users(graph, Node.param("SpEffectParam", 32))
+
+
+def test_no_inferred_behavior_variation_fallback(graph):
+    # TAE shows severed parts (tails, heads) invoke no behaviors, so their variations are not linked to their body's.
+    assert not [e for e in graph.edges if e.source == "behavior_variation" and e.confidence != "certain"]

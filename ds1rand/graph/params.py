@@ -153,17 +153,13 @@ def _behavior_variation_edges(baseline: Baseline, graph: RefGraph) -> None:
             if variation in NULL_VALUES:
                 continue
             src = Node.param(owner, row_id)
-            confidence = "certain"
             behaviors = by_variation.get(variation)
-            if not behaviors and owner == "NpcParam":
-                # Unconfirmed: severed parts (tails, heads) seem to use their body's variation, rounded down to 100.
-                behaviors = by_variation.get(variation - variation % 100)
-                confidence = "inferred"
             if not behaviors:
+                # Vanilla: test/passive NPCs and severed parts (tails, heads). TAE confirms severed-part models invoke no
+                # behaviors; their body's model and variation do the attacking.
                 graph.unresolved.append(
                     Unresolved(src, "behaviorVariationId", variation, (behavior,), "no behaviors with this variation")
                 )
                 continue
             for behavior_id in behaviors:
-                graph.add(Edge(src, Node.param(behavior, behavior_id), "behaviorVariationId", "behavior_variation",
-                               confidence))
+                graph.add(Edge(src, Node.param(behavior, behavior_id), "behaviorVariationId", "behavior_variation"))

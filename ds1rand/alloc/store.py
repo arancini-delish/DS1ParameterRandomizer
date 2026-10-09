@@ -1,7 +1,8 @@
 """`RowStore`: the working copy of param rows that the allocator and randomizers edit.
 
-It starts as the vanilla baseline and records only the rows that change, so output is always baseline + edits,
-whatever the files on disk contain. Fields are paramdef names, as everywhere else.
+It starts as a base (the vanilla baseline, or the params as other mods left them) and records only the rows that
+change, so output is always base + edits. Rows listed as `protected` (repeated IDs, which cannot be addressed) cannot
+be edited or copied. Fields are paramdef names, as everywhere else.
 """
 from __future__ import annotations
 
@@ -10,9 +11,14 @@ from typing import Any
 from ds1rand.baseline.store import Baseline
 
 
+class ProtectedRowError(KeyError):
+    """The row cannot be edited (its ID appears more than once in the param, so it cannot be addressed)."""
+
+
 class RowStore:
-    def __init__(self, baseline: Baseline):
+    def __init__(self, baseline: Baseline, protected: dict[str, set[int]] | None = None):
         self.baseline = baseline
+        self.protected = {param: set(ids) for param, ids in (protected or {}).items()}
         self._edited: dict[str, dict[int, dict[str, Any]]] = {}
         self._new: dict[str, dict[int, int]] = {}  # param -> {new row ID: row it was copied from}
 
@@ -30,6 +36,7 @@ class RowStore:
         unknown = set(values) - set(fields)
         if unknown:
             raise KeyError(f"{param} has no fields {sorted(unknown)}")
+        self._check_editable(param, row_id)
         row = self.values(param, row_id)
         row.update(values)
         self._edited.setdefault(param, {})[row_id] = row
@@ -38,8 +45,13 @@ class RowStore:
         """Add a new row as a copy of an existing one."""
         if self.exists(param, row_id):
             raise KeyError(f"{param} already has row {row_id}")
+        self._check_editable(param, copy_from)
         self._edited.setdefault(param, {})[row_id] = self.values(param, copy_from)
         self._new.setdefault(param, {})[row_id] = self.source_of(param, copy_from)
+
+    def _check_editable(self, param: str, row_id: int) -> None:
+        if row_id in self.protected.get(param, set()):
+            raise ProtectedRowError(f"{param} row {row_id} is protected")
 
     def is_new(self, param: str, row_id: int) -> bool:
         return row_id in self._new.get(param, {})

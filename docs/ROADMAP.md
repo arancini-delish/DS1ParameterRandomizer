@@ -99,6 +99,11 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - Surplus rows for compounding chains: Phase 6 randomizers take them from `IdAllocator` + `RowStore.add` within `RowBudget.plan(...)['surplus']`.
 - Finding: the curated engine entry for NG+ SpEffects (7400-7599) is referenced by NpcParam.GameClearSpEffectID, so the engine claim may be redundant (AUDIT 14).
 
+### Running on top of other mods (done)
+- Order: item → enemy → fog gate → ds1rand. Findings and design in `docs/MOD_COMPAT.md`; `tools/diff_install.py` measures what an install changes.
+- The vanilla baseline is now the reference, not a requirement: a run's base is the files as the other mods left them (saved as `<file>.ds1rand-base` on our first write; re-runs rebuild from it, or strip our recorded patches if another mod ran after us). Classification, usage and allocation run on the base and the graph built from the installed files.
+- Output is written as field patches with `ParamBinary` (byte-level, keeps rows with repeated IDs, e.g. the fog gate's duplicate scaling SpEffects); the marker (format 2) records every patch. `ds1rand/session.py` is the entry point randomizers use.
+
 ### Phase 6 — Feature randomizers
 1. **Rings** — port `ring_randomizer.py` onto the new model; exclusion list (key/quest rings: Covenant of Artorias, Darkmoon Séance, Orange Charred, plus user-configurable keep list); effect score tiers + distribution; rewrite Accessory summary/description FMGs (replace or append mode).
 2. **Spells** — player/enemy/environment; preserve subtype + school (sorcery/pyro/miracle, `ezStateBehaviorType`) + cast animation; randomize bullet visuals (sfx IDs limited to FFX resident for the caster — see audit), chaining, SpEffects, damage; cost model from `magic_randomizer.py` (power score ↔ casts, slots, stat req, cast speed/anim). Pinned utility: Homeward, Darkmoon/Sunlight Blade? (audit), Cast Light, Repair, Aural Decoy etc. per catalogue. Update Magic names/descriptions.

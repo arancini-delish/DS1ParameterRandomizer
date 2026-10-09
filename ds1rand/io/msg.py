@@ -39,6 +39,10 @@ class ItemText:
     def from_path(cls, path: Path | str) -> ItemText:
         return cls(MSGBND.from_path(path))
 
+    @classmethod
+    def from_bytes(cls, data: bytes) -> ItemText:
+        return cls(MSGBND.from_bytes(data))
+
     def _fmg_ids(self, category: str) -> list[int]:
         """Base FMG entry ID, followed by the patch entry ID if this binder has one."""
         base_id = CATEGORIES[category]
@@ -74,6 +78,17 @@ class ItemText:
         """Replace all strings of one FMG."""
         self._fmgs[fmg_id].entries = dict(entries)
         self._changed.add(fmg_id)
+
+    def delete(self, category: str, text_id: int) -> None:
+        """Remove the string from the base and patch FMGs."""
+        for entry_id in self._fmg_ids(category):
+            if self._fmgs[entry_id].entries.pop(text_id, None) is not None:
+                self._changed.add(entry_id)
+
+    def to_bytes(self) -> bytes:
+        for entry_id in self._changed:
+            self._entries[entry_id].set_uncompressed_data(bytes(self._fmgs[entry_id]))
+        return bytes(self._bnd)
 
     def save(self, path: Path | str) -> None:
         for entry_id in self._changed:

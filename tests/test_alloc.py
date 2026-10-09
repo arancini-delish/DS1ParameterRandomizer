@@ -3,7 +3,7 @@ import pytest
 
 from ds1rand.alloc.allocator import allocate
 from ds1rand.alloc.store import RowStore
-from ds1rand.alloc.write import ModifiedInstallError, build_gameparam, write_gameparam
+from ds1rand.alloc.write import apply_params, write_output
 from ds1rand.baseline.compare import FileState, check_gameparam
 from ds1rand.baseline.store import Baseline
 from ds1rand.catalogue.budget import RowBudget
@@ -94,10 +94,11 @@ def test_scope_limits_copies(graph, baseline):
     assert set(allocation.copies) <= {"NpcParam", "NpcThinkParam", "MoveParam"}
 
 
-def test_write_builds_from_vanilla(vanilla_gameparam, baseline, spells, tmp_path):
+def test_write_on_vanilla_is_reported_as_ours(vanilla_gameparam, baseline, spells, tmp_path):
     store, _ = spells
     out = tmp_path / "GameParam.parambnd.dcx"
-    write_gameparam(build_gameparam(vanilla_gameparam, baseline, store), out, {"test": True})
+    data, patches = apply_params(vanilla_gameparam.read_bytes(), store)
+    write_output(out, data, vanilla_gameparam.read_bytes(), patches)
 
     written = GameParams.from_path(out)
     new_bullet = written.row_values("Magic", 3000)["refId"]
@@ -105,19 +106,3 @@ def test_write_builds_from_vanilla(vanilla_gameparam, baseline, spells, tmp_path
     _, report = check_gameparam(out, baseline)
     assert report.state is FileState.OURS
     assert {d.name for d in report.diffs} == set(store.changes())
-
-    # Running again on top of our own output gives the same result (baseline + edits, never on top of output).
-    write_gameparam(build_gameparam(out, baseline, store), tmp_path / "again.parambnd.dcx")
-    again = GameParams.from_path(tmp_path / "again.parambnd.dcx")
-    for param, rows in store.changes().items():
-        for row_id in rows:
-            assert again.row_values(param, row_id) == written.row_values(param, row_id)
-
-
-def test_write_refuses_foreign_modifications(vanilla_gameparam, baseline, tmp_path):
-    params = GameParams.from_path(vanilla_gameparam)
-    params.row("Bullet", 3000)["life"] = 99.0
-    foreign = tmp_path / "GameParam.parambnd.dcx"
-    params.save(foreign)
-    with pytest.raises(ModifiedInstallError):
-        build_gameparam(foreign, baseline, RowStore(baseline))

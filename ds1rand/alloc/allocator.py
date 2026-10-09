@@ -18,7 +18,8 @@
 5. References are repointed group by group: each copy of a referencing row points at the copy of the referenced row
    that its features use, keeping any upgrade-level offset in the value.
 Priority is the order of `enabled`: earlier features win copies when a cap runs out. `params` limits copying to the
-params the randomizers will edit (default: all); rows of other params stay shared.
+params the randomizers will edit (default: all); rows of other params stay shared. Rows the store protects (repeated
+IDs) are never copied.
 
 The result tells each feature which rows it may edit alone (`owned`) and which it still shares (`coupled`).
 """
@@ -101,6 +102,7 @@ def plan_groups(
     enabled: tuple[str, ...],
     budget: RowBudget,
     params: set[str] | None = None,
+    protected: dict[str, set[int]] | None = None,
 ) -> dict[Node, RowGroups]:
     usage = compute_usage(graph, baseline, all_nodes=True)
     limits = reference_limits(baseline)
@@ -112,6 +114,8 @@ def plan_groups(
             continue
         if params is not None and node.name not in params:
             merges[node].append(set(features))  # not edited: no need to copy
+        elif node.id in (protected or {}).get(node.name, set()):
+            merges[node].append(set(features))  # repeated ID: cannot be copied
         elif copy_id_limit(graph, node, limits) < NEW_ID_BLOCKS[0][0]:
             merges[node].append(set(features))  # no new ID fits: cannot be copied
     anchors: dict[Node, set[str]] = defaultdict(set)
@@ -160,7 +164,7 @@ def allocate(
     enabled = tuple(enabled)
     budget = budget or RowBudget()
     ids = ids or IdAllocator(baseline)
-    groups = plan_groups(graph, baseline, enabled, budget, params)
+    groups = plan_groups(graph, baseline, enabled, budget, params, store.protected)
     limits = reference_limits(baseline)
 
     allocation = Allocation(enabled, groups, {})

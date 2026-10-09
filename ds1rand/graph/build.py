@@ -95,13 +95,17 @@ def extract_external(
     return graphs
 
 
-def build_install_graph(install: GameInstall, catalogue_dir: Path = CATALOGUE_DIR) -> tuple[Baseline, RefGraph]:
+def build_install_graph(
+    install: GameInstall, catalogue_dir: Path = CATALOGUE_DIR, installed: Baseline | None = None
+) -> tuple[Baseline, RefGraph]:
     """The reference graph of the files actually installed, which other mods may have changed: params from the
-    installed GameParam, external sources re-extracted from the installed files, plus curated hardcoded references.
-    Returns the installed params (as a `Baseline`, so all catalogue code works on them) and the graph."""
+    installed GameParam (or `installed`, e.g. the base ds1rand builds on), external sources re-extracted from the
+    installed files, plus curated hardcoded references. Returns the params (as a `Baseline`, so all catalogue code works
+    on them) and the graph."""
     from ds1rand.io.gameparam import GameParams
 
-    installed = Baseline.from_game_files(GameParams.from_path(install.gameparam), None, {})
+    if installed is None:
+        installed = Baseline.from_game_files(GameParams.from_path(install.gameparam), None, {})
     _, graph = extract_sources(source_files(install), installed)
     if (catalogue_dir / HARDCODED_FILE).is_file():
         add_hardcoded_edges(catalogue_dir / HARDCODED_FILE, installed, graph)

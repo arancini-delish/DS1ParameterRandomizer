@@ -42,7 +42,7 @@ ranges; only the combined GameParam was captured.
 8. **EMEVD robustness.** The enemy randomizer's EMEVDs pass more RunEvent arguments than soulstruct's parsed format
    holds; `ds1rand/graph/emevd.py` now packs the extras as 32-bit words.
 
-## Proposed design (replaces "refuse modified installs")
+## Design (implemented; replaces "refuse modified installs")
 
 - **Base = the files as the other mods left them**, not vanilla. On the first ds1rand write, save that state next to
   the file (`<file>.ds1rand-base`). On re-runs:
@@ -63,3 +63,15 @@ ranges; only the combined GameParam was captured.
 - **Conflicts**: a field we want to patch that another mod already changed from vanilla (e.g. CharaInitParam starting
   equipment) keeps the other mod's value by default and is reported; the allocator then treats that reference as
   fixed.
+
+Implementation:
+- `ds1rand/io/parambinary.py` (`ParamBinary`): byte-level `.param` editing; every row kept, repeated IDs untouched.
+- `ds1rand/io/gameparam.py` (`RawGameParam`): the GameParam binder as raw entries.
+- `ds1rand/alloc/write.py`: `resolve_base` (external / rebuilt / stripped), `apply_params` / `apply_text` (field
+  patches + record), `strip_params` / `strip_text`, `write_output` (file, `.ds1rand-base`, marker format 2 with the
+  patch record).
+- `ds1rand/session.py` (`Session`): resolves both bases, builds the graph from the installed files on the base params,
+  protects rows with repeated IDs, allocates, and writes.
+- On the install with all three mods (2026-10-09): opens in ~6 s; protected SpEffect 7240/7280/7320/7360 plus vanilla
+  duplicates; player-spell allocation unchanged from vanilla (67 Bullet, 30 AtkParam_Pc, 18 SpEffect copies); enemy
+  behaviour sees 1445 enemy-used NpcParam rows (555 vanilla + 890 from the enemy randomizer).

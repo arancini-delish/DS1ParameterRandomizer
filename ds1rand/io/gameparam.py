@@ -1,13 +1,16 @@
 """Reading and writing `GameParam.parambnd.dcx` through soulstruct.
 
-Fields are addressed by their paramdef internal names (e.g. `atkId_Bullet`), matching `ds1paramdefs/`, not by
-soulstruct's nicknames.
+Fields are addressed by their paramdef names as written in `ds1paramdefs/` (e.g. `atkId_Bullet`, `vowType0`), not by
+soulstruct's nicknames. soulstruct's own internal names mostly match, but some carry stray whitespace or a bit-width
+suffix (`hasTarget : 1`), so `field_names`, `row_values` and `set_row_values` translate; padding fields are excluded.
+`row["name"]` on a soulstruct row works for the plain names only.
 
 Saving only re-serializes params whose content changed since load. Untouched params keep their original bytes, so
 quirks soulstruct cannot represent (notably repeated row IDs, which it drops) survive in params we never edit.
 """
 from __future__ import annotations
 
+import functools
 import logging
 import struct
 from pathlib import Path
@@ -21,6 +24,18 @@ _LOGGER = logging.getLogger(__name__)
 
 # Offset of the u16 row count in a DSR .param header.
 _ROW_COUNT_OFFSET = 0x0A
+
+
+@functools.cache
+def _paramdef_fields(row_type: type[ParamRow]) -> dict[str, str]:
+    """Paramdef field name -> soulstruct attribute name, for non-padding fields in binary order."""
+    fields = {}
+    for attr, meta in row_type.get_all_field_metadata().items():
+        # soulstruct flags byte padding with `is_pad` but bit padding only as a hidden "Null padding" field.
+        if meta.is_pad or (meta.hide and meta.tooltip.startswith("Null padding")):
+            continue
+        fields[meta.internal_name.split(":")[0].strip()] = attr
+    return fields
 
 
 class _GameParamBND(GameParamBND):
@@ -74,14 +89,20 @@ class GameParams:
         return self._bnd.params[name][row_id]
 
     def field_names(self, name: str) -> list[str]:
-        """Internal names of the non-padding fields of `name`, in binary order."""
-        row_type = self._bnd.params[name].ROW_TYPE
-        return [meta.internal_name for meta in row_type.get_all_field_metadata().values() if not meta.is_pad]
+        """Paramdef names of the non-padding fields of `name`, in binary order."""
+        return list(_paramdef_fields(self._bnd.params[name].ROW_TYPE))
 
     def row_values(self, name: str, row_id: int) -> dict[str, Any]:
-        """Non-padding field values of a row, keyed by internal name."""
+        """Non-padding field values of a row, keyed by paramdef name."""
         row = self.row(name, row_id)
-        return {field: row[field] for field in self.field_names(name)}
+        return {field: getattr(row, attr) for field, attr in _paramdef_fields(type(row)).items()}
+
+    def set_row_values(self, name: str, row_id: int, values: dict[str, Any]) -> None:
+        """Set fields of a row by paramdef name."""
+        row = self.row(name, row_id)
+        attrs = _paramdef_fields(type(row))
+        for field, value in values.items():
+            setattr(row, attrs[field], value)
 
     def add_row(self, name: str, row_id: int, copy_from: int | None = None) -> ParamRow:
         """Add a row with default values, or a copy of row `copy_from`. Fails if `row_id` already exists."""
@@ -91,6 +112,9 @@ class GameParams:
         row = param.ROW_TYPE() if copy_from is None else param[copy_from].copy()
         param[row_id] = row
         return row
+
+    def remove_row(self, name: str, row_id: int) -> None:
+        self._bnd.params[name].pop(row_id)
 
     def next_free_id(self, name: str, start: int, end: int | None = None) -> int:
         """Lowest unused row ID in `[start, end)`, unbounded above if `end` is None."""

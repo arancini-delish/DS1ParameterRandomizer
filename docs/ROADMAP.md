@@ -49,10 +49,14 @@ tests/
 - Tests (`tests/`, skip without an install): unchanged save is byte-identical per param, edits only re-serialize the edited param, row values survive soulstruct round trip, added rows persist, text writes reach base + patch.
 - Boot-tested in game with `tools/make_boot_test.py` (re-serialized params, appended row, edited base + patch text).
 
-### Phase 2 — Vanilla baseline
-- `tools/build_baseline.py`: from a clean DSR install, dump every param's rows + relevant FMGs into `data/baseline/` with a manifest (game version, file SHA256, per-row hashes).
-- `baseline/diff.py`: on every run, read disk params, diff against baseline → report: identical / previously-randomized-by-us (detect via a signature row or manifest written on output) / unknown modifications (flag, let user choose: abort, overwrite from baseline, or keep modded rows pinned).
-- Output always = baseline + our edits. This is the idempotence fix.
+### Phase 2 — Vanilla baseline (done)
+- `data/baseline/`: `manifest.json` (source SHA-256 of GameParam, item.msgbnd and DarkSoulsRemastered.exe, soulstruct version, per-param row counts and vanilla duplicate row IDs), `params/<Name>.json` (every row, one per line, fields by `ds1paramdefs/Defs` name, padding excluded), `text/item.json` (every item FMG string, base and patch). Full rows are committed, so per-row hashes were dropped.
+- `ds1rand/defs/paramdef.py`: minimal loader for `ds1paramdefs/Defs` (field types, bit widths, defaults); a test asserts the baseline's fields equal the Defs fields for every param.
+- `ds1rand/baseline/store.py`: `Baseline` load/write and capture from loaded game files.
+- `ds1rand/baseline/compare.py`: `diff_params` / `diff_text` (changed, added, removed rows/strings), `restore_params` / `restore_text`, and file states VANILLA / OURS / MODIFIED. OURS = a `<file>.ds1rand.json` sidecar marker holding the SHA-256 of the file ds1rand wrote. Choosing abort / restore / keep for MODIFIED files is left to the randomize pipeline and UI.
+- `tools/build_baseline.py` (inputs must be vanilla) and `tools/check_install.py [--rows]`.
+- Output always = baseline + our edits: load disk, report, restore to baseline, then apply edits. This is the idempotence fix.
+- Provenance: built from a Steam-verified DSR install (2026-10-09). The verified GameParam is byte-identical to the maintainer's earlier `.bak`; values also spot-checked against known vanilla (starting-class weapons, weapon AR/weight, spell casts).
 
 ### Phase 3 — Static reference graph (the core)
 Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet`, `atk.targetSpEffect`, `emevd.ShootBullet`, `tae.InvokeBullet`):

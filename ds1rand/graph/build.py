@@ -1,6 +1,6 @@
 """Assembling the full reference graph.
 
-Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, ...)
+Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, TAE)
 need vanilla game files to extract, so they are extracted once with `extract_external` and committed under
 `data/catalogue/`, together with `sources.json` (SHA-256 of every file read); `build_graph` loads them from there.
 
@@ -17,6 +17,7 @@ from ds1rand.graph.emevd import event_files, extract_emevd_edges
 from ds1rand.graph.model import RefGraph
 from ds1rand.graph.msb import extract_msb_edges, map_files
 from ds1rand.graph.params import extract_param_edges
+from ds1rand.graph.tae import anibnd_files, extract_tae_edges
 from ds1rand.io.install import GameInstall
 
 CATALOGUE_DIR = Path(__file__).resolve().parents[2] / "data" / "catalogue"
@@ -27,10 +28,18 @@ def _stem(path: Path) -> str:
     return path.name.split(".")[0]
 
 
-# Committed file name -> (function listing the game files in an install, extractor).
+# Committed file name -> (function listing the game files in an install, extractor). Extractors take
+# (files, baseline, prior graph) and run in this order; `prior` holds the param edges and every earlier source.
 EXTERNAL_SOURCES = {
-    "emevd.json": (lambda install: event_files(install.root / "event"), extract_emevd_edges),
-    "msb.json": (lambda install: map_files(install.root / "map" / "MapStudio"), extract_msb_edges),
+    "emevd.json": (
+        lambda install: event_files(install.root / "event"),
+        lambda files, baseline, prior: extract_emevd_edges(files, row_ids(baseline)),
+    ),
+    "msb.json": (
+        lambda install: map_files(install.root / "map" / "MapStudio"),
+        lambda files, baseline, prior: extract_msb_edges(files, row_ids(baseline)),
+    ),
+    "tae.json": (lambda install: anibnd_files(install.root / "chr"), extract_tae_edges),
 }
 
 
@@ -61,12 +70,13 @@ def extract_external(
     install: GameInstall, baseline: Baseline, catalogue_dir: Path = CATALOGUE_DIR, prefer_bak: bool = False
 ) -> dict[str, RefGraph]:
     """Extract every external source from vanilla game files and write it, with `sources.json`, to `catalogue_dir`."""
-    ids = row_ids(baseline)
     sources = source_files(install, prefer_bak)
+    prior = extract_param_edges(baseline)
     graphs = {}
     for file_name, (_, extract) in EXTERNAL_SOURCES.items():
-        graphs[file_name] = extract(sources[file_name], ids)
+        graphs[file_name] = extract(sources[file_name], baseline, prior)
         graphs[file_name].write(catalogue_dir / file_name)
+        _merge(prior, graphs[file_name])
     (catalogue_dir / SOURCES_FILE).write_text(json.dumps(source_hashes(sources), indent=1) + "\n", encoding="utf-8")
     return graphs
 
@@ -77,8 +87,11 @@ def build_graph(baseline: Baseline | None = None, catalogue_dir: Path = CATALOGU
     for file_name in EXTERNAL_SOURCES:
         path = catalogue_dir / file_name
         if path.is_file():
-            external = RefGraph.load(path)
-            for edge in external.edges:
-                graph.add(edge)
-            graph.unresolved.extend(external.unresolved)
+            _merge(graph, RefGraph.load(path))
     return graph
+
+
+def _merge(graph: RefGraph, other: RefGraph) -> None:
+    for edge in other.edges:
+        graph.add(edge)
+    graph.unresolved.extend(other.unresolved)

@@ -73,7 +73,7 @@ def test_player_behaviors_only_reference_player_attacks(graph):
 
 def test_unresolved_references_are_known(graph):
     """Vanilla has a fixed set of dangling references; a change here means extraction rules changed."""
-    assert len(graph.unresolved) == 291
+    assert len(graph.unresolved) == 308
     assert {u.reason for u in graph.unresolved} == {"missing row", "no behaviors with this variation"}
 
 

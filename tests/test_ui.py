@@ -46,3 +46,11 @@ def test_share_string_round_trip(window):
 def test_disabling_rings_disables_their_options(window):
     window.rings_tab.enabled.setChecked(False)
     assert not window.rings_tab.options.isEnabled() and window.current_preset().rings.enabled is False
+
+
+def test_spells_tab(window):
+    window.preset_combo.setCurrentText("Misery")
+    assert window.spells_tab.distribution.values() == BUILTIN["Misery"].spells.tier_weights
+    window.spells_tab.status_chance.setValue(40)
+    assert window.preset_combo.currentText() == CUSTOM
+    assert window.current_preset().spells.status_chance == 0.4

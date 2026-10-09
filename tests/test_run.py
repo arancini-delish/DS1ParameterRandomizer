@@ -16,7 +16,7 @@ def test_run_from_preset(redirected_install, tmp_path):
     preset.seed = 5
     logs = []
     result = run(preset, redirected_install, out_dir=tmp_path / "out", log=logs.append)
-    assert result.seed == 5 and len(result.rings) == 36
+    assert result.seed == 5 and len(result.rings) == 36 and result.spells
     text = ItemText.from_path(tmp_path / "out" / "msg" / "ENGLISH" / "item.msgbnd.dcx")
     ring = result.rings[0]
     assert text.get("Accessory_description", ring.ring_id) == ", ".join(ring.summaries)
@@ -28,5 +28,15 @@ def test_run_from_preset(redirected_install, tmp_path):
 def test_rings_disabled_writes_nothing(redirected_install, tmp_path):
     preset = Preset.from_dict(BUILTIN["Standard"].to_dict())
     preset.rings.enabled = False
+    preset.spells.enabled = False
     result = run(preset, redirected_install, out_dir=tmp_path / "out", log=lambda _: None)
     assert result.written == [] and result.rings == []
+
+
+def test_features_use_independent_random_streams(redirected_install, tmp_path):
+    preset = Preset.from_dict(BUILTIN["Standard"].to_dict())
+    preset.seed = 9
+    both = run(preset, redirected_install, out_dir=tmp_path / "both", log=lambda _: None)
+    preset.spells.enabled = False
+    rings_only = run(preset, redirected_install, out_dir=tmp_path / "rings", log=lambda _: None)
+    assert [r.effects for r in both.rings] == [r.effects for r in rings_only.rings]

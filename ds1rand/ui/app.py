@@ -1,7 +1,7 @@
 """The ds1rand window (Phase 7 prototype).
 
 Top: global preset (built-ins, Custom), import/export of preset files and share strings, game folder, seed, output.
-Tabs: one per feature (Rings now; Spells, Projectiles and Enemy Behaviour arrive with Phase 6) and Install (what the
+Tabs: one per feature (Rings, Spells; Projectiles and Enemy Behaviour arrive with Phase 6) and Install (what the
 run would build on: other mods' changes, previous ds1rand output). Bottom: Validate / Randomize and the log.
 Work runs in a background thread so the window stays responsive.
 """
@@ -15,8 +15,10 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.features.rings import Tier
+from ds1rand.features.spells import PRESETS as SPELL_PRESETS
+from ds1rand.features.spells import SpellTier
 from ds1rand.io.install import GameInstall
-from ds1rand.presets.schema import BUILTIN, Preset, RingsSettings
+from ds1rand.presets.schema import BUILTIN, Preset, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
 from ds1rand.ui.widgets import DistributionEditor
 
@@ -99,6 +101,88 @@ class RingsTab(QtWidgets.QWidget):
         self.results.resizeColumnsToContents()
 
 
+class SpellsTab(QtWidgets.QWidget):
+    changed = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.enabled = QtWidgets.QCheckBox("Randomize spells")
+        self.enabled.toggled.connect(self._toggled)
+        layout.addWidget(self.enabled)
+
+        self.options = QtWidgets.QGroupBox("Spell power distribution")
+        options = QtWidgets.QVBoxLayout(self.options)
+        self.distribution = DistributionEditor([t.name.title() for t in SpellTier], SPELL_PRESETS)
+        self.distribution.changed.connect(self.changed)
+        options.addWidget(self.distribution)
+        self.player = QtWidgets.QCheckBox("Player spells")
+        self.enemy = QtWidgets.QCheckBox("NPC caster spells")
+        self.cross_school = QtWidgets.QCheckBox("Visuals may come from other schools")
+        self.write_summaries = QtWidgets.QCheckBox("Write tier and casts into the spell summaries")
+        for box in (self.player, self.enemy, self.cross_school, self.write_summaries):
+            box.toggled.connect(self.changed)
+            options.addWidget(box)
+        chances = QtWidgets.QFormLayout()
+        self.visual_chance = self._percent()
+        self.status_chance = self._percent()
+        chances.addRow("Chance of new visuals", self.visual_chance)
+        chances.addRow("Chance of an added status effect", self.status_chance)
+        options.addLayout(chances)
+        layout.addWidget(self.options)
+
+        self.results = QtWidgets.QTableWidget(0, 6)
+        self.results.setHorizontalHeaderLabels(["Spell", "Owner", "Tier", "Casts", "Payload from", "Power"])
+        self.results.horizontalHeader().setStretchLastSection(True)
+        self.results.verticalHeader().setVisible(False)
+        self.results.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        layout.addWidget(self.results, stretch=1)
+
+    def _percent(self) -> QtWidgets.QSpinBox:
+        spin = QtWidgets.QSpinBox()
+        spin.setRange(0, 100)
+        spin.setSuffix(" %")
+        spin.valueChanged.connect(self.changed)
+        return spin
+
+    def _toggled(self, checked: bool) -> None:
+        self.options.setEnabled(checked)
+        self.changed.emit()
+
+    def settings(self) -> SpellsSettings:
+        return SpellsSettings(self.enabled.isChecked(), self.distribution.values(), self.player.isChecked(),
+                              self.enemy.isChecked(), self.visual_chance.value() / 100, self.cross_school.isChecked(),
+                              self.status_chance.value() / 100, self.write_summaries.isChecked())
+
+    def apply(self, settings: SpellsSettings) -> None:
+        widgets = (self.enabled, self.player, self.enemy, self.cross_school, self.write_summaries, self.visual_chance,
+                   self.status_chance, self.distribution)
+        for widget in widgets:
+            widget.blockSignals(True)
+        self.enabled.setChecked(settings.enabled)
+        self.player.setChecked(settings.player)
+        self.enemy.setChecked(settings.enemy)
+        self.cross_school.setChecked(settings.cross_school_visuals)
+        self.write_summaries.setChecked(settings.write_summaries)
+        self.visual_chance.setValue(round(settings.visual_chance * 100))
+        self.status_chance.setValue(round(settings.status_chance * 100))
+        self.distribution.set_values(settings.tier_weights)
+        for widget in widgets:
+            widget.blockSignals(False)
+        self.options.setEnabled(settings.enabled)
+
+    def show_results(self, result: RunResult) -> None:
+        self.results.setRowCount(len(result.spells))
+        for row, spell in enumerate(result.spells):
+            name = result.spell_names.get(spell.magic_id) or f"NPC spell {spell.magic_id}"
+            donor = result.spell_names.get(spell.donor) or f"NPC spell {spell.donor}"
+            casts = str(spell.casts) if spell.owner == "player" else "-"
+            for col, text in enumerate((name, spell.owner, spell.tier.name.title(), casts, donor,
+                                        f"{spell.power:.2f}")):
+                self.results.setItem(row, col, QtWidgets.QTableWidgetItem(text))
+        self.results.resizeColumnsToContents()
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -116,7 +200,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rings_tab = RingsTab()
         self.rings_tab.changed.connect(self._settings_edited)
         self.tabs.addTab(self.rings_tab, "Rings")
-        for name in ("Spells", "Projectiles", "Enemy Behaviour"):
+        self.spells_tab = SpellsTab()
+        self.spells_tab.changed.connect(self._settings_edited)
+        self.tabs.addTab(self.spells_tab, "Spells")
+        for name in ("Projectiles", "Enemy Behaviour"):
             placeholder = QtWidgets.QLabel(f"{name} randomization is not built yet (roadmap Phase 6).")
             placeholder.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             self.tabs.setTabEnabled(self.tabs.addTab(placeholder, name), False)
@@ -196,14 +283,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def current_preset(self) -> Preset:
         seed = int(self.seed.text()) if self.seed.text() else None
         name = self.preset_combo.currentText()
-        return Preset(name=name, seed=seed, rings=self.rings_tab.settings())
+        return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings())
 
     def apply_preset(self, preset: Preset) -> None:
         self._loading = True
         self.rings_tab.apply(preset.rings)
+        self.spells_tab.apply(preset.spells)
         self.seed.setText("" if preset.seed is None else str(preset.seed))
         builtin = BUILTIN.get(preset.name)
-        same = builtin is not None and builtin.rings == preset.rings
+        same = builtin is not None and _sections(builtin) == _sections(preset)
         self.preset_combo.blockSignals(True)
         self.preset_combo.setCurrentText(preset.name if same else CUSTOM)
         self.preset_combo.blockSignals(False)
@@ -219,7 +307,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._loading:
             return
         name = self.preset_combo.currentText()
-        if name in BUILTIN and BUILTIN[name].rings != self.rings_tab.settings():
+        if name in BUILTIN and _sections(BUILTIN[name]) != _sections(self.current_preset()):
             self.preset_combo.blockSignals(True)
             self.preset_combo.setCurrentText(CUSTOM)
             self.preset_combo.blockSignals(False)
@@ -278,9 +366,10 @@ class MainWindow(QtWidgets.QMainWindow):
         install = self._install()
         if install is None:
             return
-        if not self.rings_tab.distribution.is_valid():
-            QtWidgets.QMessageBox.warning(self, "Invalid settings", "Ring tier weights must not all be 0.")
-            return
+        for tab, label in ((self.rings_tab, "Ring"), (self.spells_tab, "Spell")):
+            if tab.enabled.isChecked() and not tab.distribution.is_valid():
+                QtWidgets.QMessageBox.warning(self, "Invalid settings", f"{label} tier weights must not all be 0.")
+                return
         preset = self.current_preset()
         self.settings.setValue("preset", preset.to_json())
         out_dir = None if self.in_place.isChecked() else DEFAULT_OUT
@@ -320,11 +409,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _show_run(self, result: RunResult) -> None:
         self.rings_tab.show_results(result)
+        self.spells_tab.show_results(result)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
 
     def _log(self, text: str) -> None:
         self.log.appendPlainText(text)
+
+
+def _sections(preset: Preset) -> tuple:
+    """The feature settings of a preset (what decides whether it still matches a built-in)."""
+    return preset.rings, preset.spells
 
 
 def main() -> int:

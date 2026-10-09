@@ -91,3 +91,14 @@ def test_reach_and_reached_by():
     assert graph.reach(a) == {b, c}
     assert graph.reach(a, confidences=["certain"]) == {b}
     assert graph.reached_by(c) == {a, b}
+
+
+def test_upgrade_paths_link_origins_to_upgraded_rows(graph):
+    # Dagger -> its infusion paths (Crystal, Lightning, ...), which nothing else references.
+    upgraded = {str(e.dst) for e in graph.refs_of(Node.param("EquipParamWeapon", 100000)) if e.field == "upgrade_path"}
+    assert {"EquipParamWeapon:100100", "EquipParamWeapon:100200"} <= upgraded
+
+
+def test_item_lot_chains_are_inferred(graph):
+    edges = [e for e in graph.refs_of(Node.param("ItemLotParam", 2030)) if e.source == "item_lot_chain"]
+    assert [(str(e.dst), e.confidence) for e in edges] == [("ItemLotParam:2031", "inferred")]

@@ -1,6 +1,6 @@
 """Assembling the full reference graph.
 
-Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, TAE)
+Param -> param edges are rebuilt from the baseline on demand. Edges from game files other than params (EMEVD, MSB, TAE, AI Lua)
 need vanilla game files to extract, so they are extracted once with `extract_external` and committed under
 `data/catalogue/`, together with `sources.json` (SHA-256 of every file read); `build_graph` loads them from there.
 
@@ -14,6 +14,8 @@ from pathlib import Path
 
 from ds1rand.baseline.store import Baseline, sha256_file
 from ds1rand.graph.emevd import event_files, extract_emevd_edges
+from ds1rand.graph.hardcoded import add_hardcoded_edges
+from ds1rand.graph.lua import extract_lua_edges, luabnd_files
 from ds1rand.graph.model import RefGraph
 from ds1rand.graph.msb import extract_msb_edges, map_files
 from ds1rand.graph.params import extract_param_edges
@@ -22,6 +24,7 @@ from ds1rand.io.install import GameInstall
 
 CATALOGUE_DIR = Path(__file__).resolve().parents[2] / "data" / "catalogue"
 SOURCES_FILE = "sources.json"
+HARDCODED_FILE = "hardcoded.toml"
 
 
 def _stem(path: Path) -> str:
@@ -40,6 +43,7 @@ EXTERNAL_SOURCES = {
         lambda files, baseline, prior: extract_msb_edges(files, row_ids(baseline)),
     ),
     "tae.json": (lambda install: anibnd_files(install.root / "chr"), extract_tae_edges),
+    "lua.json": (lambda install: luabnd_files(install.root / "script"), extract_lua_edges),
 }
 
 
@@ -82,13 +86,29 @@ def extract_external(
 
 
 def build_graph(baseline: Baseline | None = None, catalogue_dir: Path = CATALOGUE_DIR) -> RefGraph:
-    """Param edges from the baseline plus every committed external source."""
-    graph = extract_param_edges(baseline or Baseline.load())
+    """Param edges from the baseline, every committed external source, and the curated hardcoded references."""
+    baseline = baseline or Baseline.load()
+    graph = extract_param_edges(baseline)
     for file_name in EXTERNAL_SOURCES:
         path = catalogue_dir / file_name
         if path.is_file():
             _merge(graph, RefGraph.load(path))
+    if (catalogue_dir / HARDCODED_FILE).is_file():
+        add_hardcoded_edges(catalogue_dir / HARDCODED_FILE, baseline, graph)
     return graph
+
+
+ORPHAN_PARAMS = (
+    "SpEffectParam", "Bullet", "AtkParam_Pc", "AtkParam_Npc", "BehaviorParam", "BehaviorParam_PC", "Magic",
+    "EquipParamWeapon", "EquipParamProtector", "EquipParamAccessory", "EquipParamGoods", "NpcParam", "NpcThinkParam",
+    "ItemLotParam", "ObjActParam",
+)
+
+
+def orphans(graph: RefGraph, baseline: Baseline, params=ORPHAN_PARAMS) -> dict[str, list[int]]:
+    """Rows (other than row 0) that nothing in the graph references: dead data or engine use not yet catalogued."""
+    used = {(e.dst.name, e.dst.id) for e in graph.edges if e.dst.kind == "param"}
+    return {p: [r for r in sorted(baseline.params[p].rows) if r and (p, r) not in used] for p in params}
 
 
 def _merge(graph: RefGraph, other: RefGraph) -> None:

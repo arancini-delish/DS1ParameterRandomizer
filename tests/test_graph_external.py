@@ -35,7 +35,7 @@ def test_unresolved_counts(graph):
     counts = {}
     for u in graph.unresolved:
         counts[u.src.kind] = counts.get(u.src.kind, 0) + 1
-    assert counts == {"param": 308, "emevd": 3, "msb": 136, "tae": 95}
+    assert counts == {"param": 377, "emevd": 3, "msb": 136, "tae": 95, "lua": 2}
 
 
 def test_event_only_behaviors(graph):
@@ -101,3 +101,41 @@ def test_player_animations_add_speffects(graph):
 def test_no_inferred_behavior_variation_fallback(graph):
     # TAE shows severed parts (tails, heads) invoke no behaviors, so their variations are not linked to their body's.
     assert not [e for e in graph.edges if e.source == "behavior_variation" and e.confidence != "certain"]
+
+
+def test_ai_goals_link_npc_think_params_to_speffects(graph):
+    goal = Node("lua", "battle", 6520)
+    assert {"NpcThinkParam:6520", "NpcThinkParam:6521"} <= {str(e.src) for e in graph.users_of(goal)}
+    assert {str(e.dst) for e in graph.refs_of(goal)} == {"SpEffectParam:1500", "SpEffectParam:5444"}
+
+
+def test_ai_event_script_awards_item_lots(graph):
+    assert users(graph, Node.param("ItemLotParam", 5000)) == {
+        ("lua/script/global_event:0", "GetRateItem_IgnoreMultiPlay.arg0")
+    }
+
+
+def test_hardcoded_engine_rows(graph):
+    assert ("engine/speffect_bonfire_respawn_recovery:0", "hardcoded") in users(graph, Node.param("SpEffectParam", 101))
+
+
+def test_hardcoded_catalogue_is_valid(baseline):
+    import tomllib
+
+    entries = tomllib.loads((CATALOGUE_DIR / "hardcoded.toml").read_text(encoding="utf-8"))["entry"]
+    assert len({e["name"] for e in entries}) == len(entries)
+    for entry in entries:
+        assert entry["param"] in baseline.params and entry["reason"] and entry["source"]
+
+
+def test_orphan_counts(graph, baseline):
+    """Rows nothing references, per param: dead data or engine use not yet catalogued (AUDIT 14). Cataloguing more
+    references should lower these deliberately."""
+    from ds1rand.graph.build import orphans
+
+    assert {param: len(rows) for param, rows in orphans(graph, baseline).items()} == {
+        "SpEffectParam": 334, "Bullet": 76, "AtkParam_Pc": 57, "AtkParam_Npc": 54, "BehaviorParam": 110,
+        "BehaviorParam_PC": 18, "Magic": 37, "EquipParamWeapon": 1, "EquipParamProtector": 43,
+        "EquipParamAccessory": 0, "EquipParamGoods": 23, "NpcParam": 98, "NpcThinkParam": 91, "ItemLotParam": 105,
+        "ObjActParam": 33,
+    }

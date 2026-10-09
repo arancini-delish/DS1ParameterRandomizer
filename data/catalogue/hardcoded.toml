@@ -1,0 +1,66 @@
+# Rows the game engine uses by ID without any file referencing them (curated; see ds1rand/graph/hardcoded.py).
+#
+# Each entry links an `engine/<name>:0` node to every listed row, so they count as used and are never treated as free.
+#   param       param name
+#   ids         row IDs and/or "first-last" ranges (inclusive; only existing rows are linked)
+#   reason      what the engine does with them
+#   source      where the claim comes from
+#   confidence  "certain" (verified) or "inferred" (documented by the community, not verified in game)
+#
+# Add entries as rows are identified (docs/AUDIT.md item 14; `tools/build_graph.py --orphans` lists candidates).
+
+[[entry]]
+name = "speffect_animation_permanent"
+param = "SpEffectParam"
+ids = ["30-99"]
+reason = "Animation/permanent effects applied by the engine, e.g. curse, resonance, counter damage"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_bonfire_respawn_recovery"
+param = "SpEffectParam"
+ids = ["100-119"]
+reason = "Bonfire rest and respawn recovery effects"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_world_tendency"
+param = "SpEffectParam"
+ids = ["200-399"]
+reason = "World tendency (QWC) area and player effects; possibly unused in DS1"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_area_level"
+param = "SpEffectParam"
+ids = ["7000-7099"]
+reason = "Area level effects applied to all enemies in an area (7001-7015)"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_black_phantom"
+param = "SpEffectParam"
+ids = [7100]
+reason = "Buff applied to Gravelord black phantoms"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_ng_plus_and_boss_coop"
+param = "SpEffectParam"
+ids = ["7400-7599"]
+reason = "NG+ level buffs stacked on NPCs, and boss buffs scaled by number of summons"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"
+
+[[entry]]
+name = "speffect_level_sync"
+param = "SpEffectParam"
+ids = [9600]
+reason = "Symbolic effect for DSR PvP level matching"
+source = "soulstruct darksouls1ptde.constants.SPECIAL_EFFECT_RANGES"
+confidence = "inferred"

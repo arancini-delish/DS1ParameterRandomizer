@@ -32,6 +32,7 @@ class FieldDef:
 class ParamDef:
     param_type: str  # e.g. BULLET_PARAM_ST
     fields: tuple[FieldDef, ...]
+    stem: str  # Defs file stem, e.g. "BulletParam"; the matching Meta file has the same stem
 
     @property
     def value_fields(self) -> list[FieldDef]:
@@ -56,7 +57,7 @@ def _parse(path: Path) -> ParamDef:
             display_name=element.findtext("DisplayName", ""),
             description=element.findtext("Description", ""),
         ))
-    return ParamDef(root.findtext("ParamType"), tuple(fields))
+    return ParamDef(root.findtext("ParamType"), tuple(fields), path.stem)
 
 
 @functools.cache

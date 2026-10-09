@@ -58,7 +58,7 @@ tests/
 - Output always = baseline + our edits: load disk, report, restore to baseline, then apply edits. This is the idempotence fix.
 - Provenance: built from a Steam-verified DSR install (2026-10-09). The verified GameParam is byte-identical to the maintainer's earlier `.bak`; values also spot-checked against known vanilla (starting-class weapons, weapon AR/weight, spell casts).
 
-### Phase 3 — Static reference graph (the core)
+### Phase 3 — Static reference graph (the core) (3a param edges done)
 Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet`, `atk.targetSpEffect`, `emevd.ShootBullet`, `tae.InvokeBullet`):
 1. **Param→param** from Meta `Refs` (including conditional refs evaluated per row).
 2. **Computed IDs** not in Meta: BehaviorParam (`2xx` NPC = `behaviorVariationId*1000 + judgeId`), BehaviorParam_PC (weapon `behaviorVariationId`), arrow/bolt ammo → bullet via behaviour variation, SpEffect `replaceSpEffectId`/cycle/next fields, Goods throwables, ObjActParam, ThrowParam, NpcThinkParam, CharaInit.
@@ -67,7 +67,9 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 5. **TAE** (new reader in `io/tae.py`; DS1 TAE format, only parse event type + args): InvokeAttackBehavior / InvokeBulletBehavior / InvokePCBehavior / ApplySpEffect-style events, per character (`chr/cXXXX.anibnd.dcx`) and player (`c0000`). Links animations → BehaviorParam judge IDs → Atk/Bullet/SpEffect. Also identifies "spray" style spells (repeated bullet invokes) without hardcoded anim IDs.
 6. **AI Lua** (`script/*.luabnd.dcx`, compiled Lua 5.0): `io/lua.py` constant extractor from bytecode (no full decompile) for numeric literals → candidate SpEffect/anim/behaviour IDs; optional DSLuaDecompiler output for manual audit. Low-confidence edges flagged as such.
 7. **Curated** `catalogue/hardcoded.yaml`: EXE-hardcoded SpEffect/Bullet/Atk IDs (humanity, hollowing, covenant, poison/toxic/bleed/curse buildup effects, hit-material SpEffects, stateInfo semantics, homeward/return spells, ring passives such as Ring of Fog/Rusted Iron).
-- Output `data/catalogue/graph.json`. `graph` API: `users_of(node)`, `reach(node)`, `features_of(node)`, `is_shared(node)`.
+- Delivered in stages, one PR each: 3a param→param (Meta, soulstruct extras, behavior variations), 3b EMEVD + MSB, 3c TAE, 3d AI Lua, 3e curated hardcoded IDs.
+- 3a (done): `ds1rand/defs/meta.py` (Meta loader), `ds1rand/graph/model.py` (`RefGraph`: `refs_of`, `users_of`, `reach`, `reached_by`; edges carry field, source and confidence `certain`/`ambiguous`/`inferred`; unresolved references kept for the audit), `ds1rand/graph/params.py`, `tools/build_graph.py`.
+- Param edges are rebuilt from the baseline on demand (0.3 s), so they are not committed. Edges from game files (EMEVD, MSB, TAE, Lua) need the install to extract, so 3b onwards commits those under `data/catalogue/`. `features_of` / `is_shared` move to Phase 4, which defines features.
 
 ### Phase 4 — Catalogue & classification
 - Every node in scope gets `feature` (ring, player_spell, enemy_spell, env_spell, player_projectile, enemy_projectile, env_projectile, enemy_behaviour, weapon, other/pinned) and `subtype` (see register). Rows used by multiple features are recorded with all usages.

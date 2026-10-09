@@ -58,8 +58,17 @@ def extract_emevd_edges(files: dict[str, Path], row_ids: dict[str, set[int]], gr
     return graph
 
 
+def _args_fmt(instruction) -> str:
+    """Struct format of the instruction's arguments. Modded files (e.g. the enemy randomizer's) can give RunEvent more
+    arguments than soulstruct's parsed format holds; the extras are 32-bit words."""
+    fmt = instruction.struct_args_fmt
+    extra = len(instruction.args_list) - len(struct.unpack("@" + fmt, bytes(struct.calcsize("@" + fmt))))
+    return fmt + "".join("f" if isinstance(a, float) else "I" if a > 2**31 - 1 else "i"
+                         for a in instruction.args_list[len(instruction.args_list) - extra:]) if extra > 0 else fmt
+
+
 def _packed_args(instruction) -> bytearray:
-    return bytearray(struct.pack("@" + instruction.struct_args_fmt + "0i", *instruction.args_list))
+    return bytearray(struct.pack("@" + _args_fmt(instruction) + "0i", *instruction.args_list))
 
 
 def _extract_file(emevd: EMEVD, stem: str, row_ids: dict[str, set[int]], graph: RefGraph) -> None:
@@ -92,7 +101,7 @@ def _extract_file(emevd: EMEVD, stem: str, row_ids: dict[str, set[int]], graph: 
             if key not in INSTRUCTION_REFS and key not in ITEM_INSTRUCTIONS:
                 continue
             spec = EMEDF[key]
-            values = dict(zip(spec["args"], struct.unpack("@" + ins.struct_args_fmt + "0i", bytes(data))))
+            values = dict(zip(spec["args"], struct.unpack("@" + _args_fmt(ins) + "0i", bytes(data))))
             refs = dict(INSTRUCTION_REFS.get(key, {}))
             if key in ITEM_INSTRUCTIONS and values["item_type"] in ITEM_PARAMS:
                 refs["item"] = (ITEM_PARAMS[values["item_type"]],)

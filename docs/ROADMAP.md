@@ -112,6 +112,26 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 2. **Spells** — player/enemy/environment; preserve subtype + school (sorcery/pyro/miracle, `ezStateBehaviorType`) + cast animation; randomize bullet visuals (sfx IDs limited to FFX resident for the caster — see audit), chaining, SpEffects, damage; cost model from `magic_randomizer.py` (power score ↔ casts, slots, stat req, cast speed/anim). Pinned utility: Homeward, Darkmoon/Sunlight Blade? (audit), Cast Light, Repair, Aural Decoy etc. per catalogue. Update Magic names/descriptions.
 3. **Projectiles** — non-spell bullets (arrows/bolts, throwables, enemy ranged, traps); same chaining engine, non-spell sfx pool; player cost model (ammo/goods price, weight, damage vs. bow/crossbow association); separate distributions for player/enemy/environment.
 4. **Enemy behaviour** — NpcParam / NpcThinkParam / MoveParam fields: turn speed, detection (sight/hearing radius & angle), move speed, aggression/battle-goal related fields, poise/stamina; each field toggleable with min/max/distribution; per-enemy-category exclusions (bosses, NPCs, scripted).
+5. **Weapons** (tab) — rarity tiers with a cost model, like rings and spells:
+   - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight and triggered SpEffects.
+   - Common weapons trade several of these off, so they are less desirable.
+   - Each infusion row (Crystal, Divine, ...) is randomized as a weapon of its own, with its own stats and SpEffects.
+   - Scaling is priced by the damage it can scale: a high letter only goes to a stat that scales a damage type the weapon actually deals (strength/dexterity -> physical, intelligence/faith -> magic above a negligible amount). This keeps the letters shown meaningful and usable.
+   - Weapons may trade movesets with other weapons of their type (stamina and motion values stay with the moveset).
+   - Triggered SpEffects come from any fitting SpEffect, not only existing weapon ones, with text written into the description as with rings.
+   - Shields get their own defense randomization (guard cut rates, stability, status guard).
+   - Pins: fists (900000), catalysts and talismans, ammo.
+   - Constraint: every starting class can use its starting weapons and shield with its starting stats.
+   - See AUDIT 33-38.
+6. **Armor** (tab) — rarity tiers:
+   - Rarer armor may get better weight, poise, defenses / resistances and triggered SpEffects.
+   - SpEffects come from any fitting SpEffect, with ring-style text in the description.
+   - See AUDIT 39-40.
+7. **Body / face data** (tab):
+   - Randomizes NPC face data and the player's character creation templates, with one strength slider for each. Existing saves keep their face and physique.
+   - NPC body proportions get their own slider; player body too, if character creation reads it from params (AUDIT 42).
+   - At full strength every value is drawn within sensible extremes (the vanilla range per field).
+   - See AUDIT 41-42.
 
 ### Phase 7 — UI & presets (prototype done; grows with each Phase 6 feature)
 - `ds1rand/presets/schema.py`: versioned `Preset` (seed + one section per feature: rings, spells, projectiles), JSON files and share strings (`DS1R1-` + base64url(zlib(JSON))); unknown keys ignored, missing keys default, newer versions refused. Built-in global presets Easy / Standard / Hard / Misery.
@@ -132,4 +152,4 @@ The audit and catalogue register lives in [AUDIT.md](AUDIT.md). No feature rando
 - UI smoke: launch `python -m ds1rand.ui`, load/export/import share string, randomize to a scratch copy of the game dir.
 
 ## Milestone order
-0 docs → 1 I/O → 2 baseline → 3 graph (params+computed, then EMEVD/MSB, then TAE, then Lua) → 4 catalogue (SpEffect, Bullet, Atk, Magic first) → 6.1 rings on new stack (first end-to-end) → 7 UI shell + presets → 5 allocator → 6.2 spells → 6.3 projectiles → 6.4 enemy behaviour → 8 packaging.
+0 docs → 1 I/O → 2 baseline → 3 graph (params+computed, then EMEVD/MSB, then TAE, then Lua) → 4 catalogue (SpEffect, Bullet, Atk, Magic first) → 6.1 rings on new stack (first end-to-end) → 7 UI shell + presets → 5 allocator → 6.2 spells → 6.3 projectiles → 6.4 enemy behaviour → 6.5 weapons → 6.6 armor → 6.7 body / face data → 8 packaging.

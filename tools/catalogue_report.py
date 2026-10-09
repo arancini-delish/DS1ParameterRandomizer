@@ -1,4 +1,4 @@
-"""Report which features use each param's rows, and which rows are shared between features.
+"""Report which features use each param's rows, which rows are shared between features, and subtype coverage.
 
 Usage: uv run python tools/catalogue_report.py [--shared PARAM]
 """
@@ -6,6 +6,7 @@ import argparse
 from collections import Counter
 
 from ds1rand.baseline.store import Baseline
+from ds1rand.catalogue.subtypes import coverage
 from ds1rand.catalogue.usage import FEATURES, compute_usage
 from ds1rand.graph.build import ORPHAN_PARAMS, build_graph
 
@@ -25,6 +26,13 @@ def main() -> None:
         per_feature = Counter(f for features in tags for f in features)
         shared = sum(len(features) > 1 for features in tags)
         print(f"{param:22} {len(rows):5} {len(tags):5} {shared:6}  " + " ".join(f"{per_feature[f]:12}" for f in FEATURES))
+
+    used = {p: sorted(n.id for n in usage if n.name == p) for p in ("Bullet", "Magic")}
+    for param, counts in coverage(baseline, used).items():
+        print(f"
+{param} subtypes ({sum(counts.values())} used rows):")
+        for subtype, count in counts.most_common():
+            print(f"  {count:5}  {subtype}")
 
     if args.shared:
         combos = Counter()

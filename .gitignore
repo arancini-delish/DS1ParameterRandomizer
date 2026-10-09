@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Game files and local extraction caches (vanilla data goes in data/baseline via tools/)
+*.dcx
+*.param
+*.fmg
+*-dcx/
+/params/
+/msgs/
+/WitchyBnd/

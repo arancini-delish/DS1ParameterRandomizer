@@ -113,21 +113,23 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 3. **Projectiles** — non-spell bullets (arrows/bolts, throwables, enemy ranged, traps); same chaining engine, non-spell sfx pool; player cost model (ammo/goods price, weight, damage vs. bow/crossbow association); separate distributions for player/enemy/environment.
 4. **Enemy behaviour** — NpcParam / NpcThinkParam / MoveParam fields: turn speed, detection (sight/hearing radius & angle), move speed, aggression/battle-goal related fields, poise/stamina; each field toggleable with min/max/distribution; per-enemy-category exclusions (bosses, NPCs, scripted).
 5. **Weapons** (tab) — rarity tiers with a cost model, like rings and spells:
-   - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight, stamina use and triggered SpEffects.
+   - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight and triggered SpEffects.
    - Common weapons trade several of these off, so they are less desirable.
-   - Scaling may move between stats (e.g. a slow, heavily faith-scaling dagger with low base damage). The in-game scaling letters should follow the new values.
+   - Each infusion row (Crystal, Divine, ...) is randomized as a weapon of its own, with its own stats and SpEffects.
+   - Scaling is priced by the damage it can scale: a high letter only goes to a stat that scales a damage type the weapon actually deals (strength/dexterity -> physical, intelligence/faith -> magic above a negligible amount). This keeps the letters shown meaningful and usable.
+   - Weapons may trade movesets with other weapons of their type (stamina and motion values stay with the moveset).
    - Triggered SpEffects come from any fitting SpEffect, not only existing weapon ones, with text written into the description as with rings.
    - Shields get their own defense randomization (guard cut rates, stability, status guard).
-   - Pins: fists (900000).
-   - Constraint: every starting class can use its starting weapons (and shield / catalyst / talisman) with its starting stats.
+   - Pins: fists (900000), catalysts and talismans, ammo.
+   - Constraint: every starting class can use its starting weapons and shield with its starting stats.
    - See AUDIT 33-38.
 6. **Armor** (tab) — rarity tiers:
    - Rarer armor may get better weight, poise, defenses / resistances and triggered SpEffects.
    - SpEffects come from any fitting SpEffect, with ring-style text in the description.
    - See AUDIT 39-40.
 7. **Body / face data** (tab):
-   - Randomizes NPC and player (character creation) face data, with one strength slider for each.
-   - Body proportions get their own slider, if they are param-driven.
+   - Randomizes NPC face data and the player's character creation templates, with one strength slider for each. Existing saves keep their face and physique.
+   - NPC body proportions get their own slider; player body too, if character creation reads it from params (AUDIT 42).
    - At full strength every value is drawn within sensible extremes (the vanilla range per field).
    - See AUDIT 41-42.
 

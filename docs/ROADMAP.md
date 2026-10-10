@@ -120,6 +120,16 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 2. **Spells** — player/enemy/environment; preserve subtype + school (sorcery/pyro/miracle, `ezStateBehaviorType`) + cast animation; randomize bullet visuals (sfx IDs limited to FFX resident for the caster — see audit), chaining, SpEffects, damage; cost model from `magic_randomizer.py` (power score ↔ casts, slots, stat req, cast speed/anim). Pinned utility: Homeward, Darkmoon/Sunlight Blade? (audit), Cast Light, Repair, Aural Decoy etc. per catalogue. Update Magic names/descriptions.
 3. **Projectiles** — non-spell bullets (arrows/bolts, throwables, enemy ranged, traps); same chaining engine, non-spell sfx pool; player cost model (ammo/goods price, weight, damage vs. bow/crossbow association); separate distributions for player/enemy/environment.
 4. **Enemy behaviour** — NpcParam / NpcThinkParam / MoveParam fields: turn speed, detection (sight/hearing radius & angle), move speed, aggression/battle-goal related fields, poise/stamina; each field toggleable with min/max/distribution; per-enemy-category exclusions (bosses, NPCs, scripted).
+5. **Weapons** (done, pending in-game check): `ds1rand/features/weapons.py`.
+   - Each weapon row (infusion rows included) draws a rarity tier that sets a target value relative to vanilla. Of 48 random candidates, the closest one wins.
+   - Value combines attack rating at reference stats (scaling only counts for damage it scales), weight, requirements, guard and added effects.
+   - Commons come out around 0.85x vanilla, Legendaries around 1.3x.
+   - Optional moveset trades within type, on-hit and while-held effects (shared passives module) and elemental conversion.
+   - Rarity, moveset and effects are written into the long description.
+   - Shields value guard most.
+   - Starting gear is capped to class stats, and NPCs keep vanilla copies.
+   - Preset section, UI Weapons tab, `--no-weapons`.
+   - The original scope follows.
 5. **Weapons** (tab) — rarity tiers with a cost model, like rings and spells:
    - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight and triggered SpEffects.
    - Common weapons trade several of these off, so they are less desirable.

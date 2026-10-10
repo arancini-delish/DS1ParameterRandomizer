@@ -11,6 +11,7 @@ from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
 from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
 from ds1rand.features.spells import SpellConfig, SpellResult, randomize_spells
+from ds1rand.features.weapons import WeaponConfig, WeaponResult, randomize_weapons
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
 from ds1rand.session import Session
@@ -32,6 +33,8 @@ class RunResult:
     projectiles: list[ProjectileResult] = field(default_factory=list)
     goods_names: dict[int, str] = field(default_factory=dict)
     enemies: list[EnemyResult] = field(default_factory=list)
+    weapons: list[WeaponResult] = field(default_factory=list)
+    weapon_names: dict[int, str] = field(default_factory=dict)
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -98,6 +101,15 @@ def run(
         log(f"Enemy behaviour: {len(result.enemies)} enemy types randomized "
             f"({sum(bool(r.speed) for r in result.enemies)} with new movement)")
 
+    if preset.weapons.enabled:
+        settings = preset.weapons
+        config = WeaponConfig(tier_weights=tuple(settings.tier_weights), **{f: getattr(settings, f) for f in (
+            "weapons", "shields", "moveset_chance", "effect_chance", "element_chance", "isolate_npcs",
+            "write_descriptions")})
+        result.weapons = randomize_weapons(session, config, random.Random(f"{seed}-weapons"))
+        log(f"Weapons: {len(result.weapons)} randomized ({sum(r.shield for r in result.weapons)} shields, "
+            f"{sum(bool(r.moveset_from) for r in result.weapons)} new movesets)")
+
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
     log(f"Wrote {', '.join(result.written) or 'nothing'} to {result.target}")
@@ -115,6 +127,7 @@ def _result(session: Session, seed: int) -> RunResult:
         foreign=[d.summary() for d in session.foreign_changes()["params"]],
         ring_names=dict(names),
         spell_names=spell_names,
+        weapon_names={k: v for k, v in session.base.text.get(11, ("", {}))[1].items() if v},
         goods_names={**session.base.text.get(10, ("", {}))[1],
                      **{k: v for k, v in session.base.text.get(111, ("", {}))[1].items() if v}},
     )

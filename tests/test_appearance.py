@@ -4,8 +4,7 @@ import random
 import pytest
 
 from ds1rand.features.appearance import (
-    BODY, BODY_LIMITS, BODY_TYPE_LIMITS, FACE_TYPE_LIMITS, PHYSIQUES, TEMPLATES, AppearanceConfig,
-    randomize_appearance,
+    BODY, BODY_LIMITS, FACE_TYPE_LIMITS, PHYSIQUES, TEMPLATES, AppearanceConfig, randomize_appearance,
 )
 from ds1rand.session import Session
 
@@ -69,15 +68,23 @@ def test_npcs_sharing_a_template_face_get_a_copy(session):
         assert values["npcPlayerFaceGenId"] in copies
 
 
-def test_exaggerated_strength_stays_within_field_types(session):
+def test_exaggerated_strength_keeps_player_data_vanilla_shaped(session):
+    """Above 100% NPC faces use the whole u8 range, but what a player character can carry (face templates, body
+    scales) stays within vanilla's extremes: co-op refuses characters with values no vanilla character has."""
     result = run(session, 4, 4, 4, 4)
-    fields = list(session.vanilla.params["FaceGenParam"].row_values(0))
-    outside_vanilla = 0
-    for row_id in result.npc_faces + result.player_faces:
+    vanilla = session.vanilla.params["FaceGenParam"]
+    fields = [f for f in vanilla.row_values(0) if f != "hairStyle"]
+    limits = {f: (min(vanilla.row_values(r)[f] for r in vanilla.rows),
+                  max(vanilla.row_values(r)[f] for r in vanilla.rows)) for f in fields}
+    beyond_vanilla = 0
+    for row_id in result.npc_faces:
         values = session.store.values("FaceGenParam", row_id)
         assert all(FACE_TYPE_LIMITS[0] <= values[f] <= FACE_TYPE_LIMITS[1] for f in fields)
+        beyond_vanilla += sum(not limits[f][0] <= values[f] <= limits[f][1] for f in fields)
+    assert beyond_vanilla
+    for row_id in result.player_faces:
+        values = session.store.values("FaceGenParam", row_id)
+        assert all(limits[f][0] <= values[f] <= limits[f][1] for f in fields)
     for row_id in result.physiques + result.npc_bodies:
         values = session.store.values("CharaInitParam", row_id)
-        assert all(BODY_TYPE_LIMITS[0] <= values[f] <= BODY_TYPE_LIMITS[1] for f in BODY)
-        outside_vanilla += sum(not BODY_LIMITS[0] <= values[f] <= BODY_LIMITS[1] for f in BODY)
-    assert outside_vanilla
+        assert all(BODY_LIMITS[0] <= values[f] <= BODY_LIMITS[1] for f in BODY)

@@ -57,7 +57,7 @@ class WeaponTier(IntEnum):
     LEGENDARY = 3
 
 
-TIER_VALUE = {WeaponTier.COMMON: 0.82, WeaponTier.UNCOMMON: 1.0, WeaponTier.RARE: 1.18, WeaponTier.LEGENDARY: 1.4}
+TIER_VALUE = {WeaponTier.COMMON: 0.92, WeaponTier.UNCOMMON: 1.13, WeaponTier.RARE: 1.35, WeaponTier.LEGENDARY: 1.6}
 TIER_LEVEL = {WeaponTier.COMMON: Level.LOW, WeaponTier.UNCOMMON: Level.MEDIUM, WeaponTier.RARE: Level.HIGH,
               WeaponTier.LEGENDARY: Level.LEGENDARY}
 PRESETS = {
@@ -302,7 +302,7 @@ class _WeaponBuilder:
         else:
             for name in GUARD_CUTS:
                 new[name] = float(min(100, round(old[name] * _log_uniform(rng, 0.85, 1.15))))
-            damage = _log_uniform(rng, 0.65, 1.55)
+            damage = _log_uniform(rng, 0.65, 1.9)
         for name in DAMAGE:
             new[name] = round(old[name] * damage)
         if not shield and new["attackBasePhysics"] > 0 and rng.random() < self.config.element_chance:

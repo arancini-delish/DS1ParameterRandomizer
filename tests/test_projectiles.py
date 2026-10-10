@@ -8,6 +8,7 @@ from ds1rand.features.projectiles import (
     CARRY_LIMITS, THROWABLES, TIER_POWER, ProjectileConfig, _ProjectileBuilder, find_slots, randomize_projectiles,
 )
 from ds1rand.catalogue.ffx import bullet_effects
+from ds1rand.features.projectiles import LIGHT_MODELS
 from ds1rand.session import Session
 
 
@@ -73,7 +74,7 @@ def test_enemy_damage_follows_the_replaced_projectile(session):
     tables = _ProjectileBuilder(session, ProjectileConfig(), random.Random(0)).attack_table
     checked = 0
     for r in results:
-        if r.slot.owner == "player":
+        if r.slot.owner == "player" or r.slot.group in LIGHT_MODELS:  # swarmers are capped instead
             continue
         own = chain_damage(session, r.slot.root, r.slot.attack_param)
         donor = chain_damage(session, r.donor, tables[r.donor])
@@ -161,3 +162,27 @@ def test_cross_side_donors_copy_attacks_into_the_npc_table(session):
         assert new["atkMag"] == round(old["atkMag"] * r.power) and new["hit0_Radius"] == old["hit0_Radius"]
         checked += 1
     assert checked
+
+
+def test_swarming_humanity_gets_light_projectiles(session):
+    from ds1rand.catalogue.subtypes import classify_bullet
+    from ds1rand.features.projectiles import LIGHT_DAMAGE_CAP, LIGHT_MAX_BULLETS, LIGHT_MODELS
+
+    checked = 0
+    for seed in range(4):
+        for r in run(session, seed=seed, chain_chance=1.0, status_chance=1.0):
+            if r.slot.group not in LIGHT_MODELS:
+                continue
+            assert r.chained_from is None and r.status is None
+            chain = _new_chain(session, r.root)
+            assert len(chain) <= LIGHT_MAX_BULLETS
+            damage = 0
+            for bullet in chain:
+                values = session.store.values("Bullet", bullet)
+                assert not {"multi", "stream", "lingering"} & set(classify_bullet(values).qualifiers)
+                if values["atkId_Bullet"] > 0:
+                    attack = session.store.values("AtkParam_Npc", values["atkId_Bullet"])
+                    damage += sum(attack[f] for f in DAMAGE_FIELDS)
+            assert 0 < damage <= LIGHT_DAMAGE_CAP + 1
+            checked += 1
+    assert checked >= 6

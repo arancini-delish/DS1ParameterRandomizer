@@ -18,8 +18,8 @@ from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
 from ds1rand.session import Session
 from ds1rand.spoiler import write_spoiler
+from ds1rand.paths import DEFAULT_OUT
 
-DEFAULT_OUT = Path(__file__).resolve().parents[1] / "out" / "randomized"
 
 
 @dataclass

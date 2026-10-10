@@ -173,8 +173,14 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
   - a row browser (filter by ID or name) with usage, subtype, references both ways (source and confidence) and values in vanilla / base / this run.
 - Phase 7 is done; packaging (Phase 8) is next.
 
-### Phase 8 — Packaging
-- PyInstaller build; ship `data/` alongside.
+### Phase 8 — Packaging (done)
+- PyInstaller build (`packaging/ds1rand.spec`, `uv run --group build python tools/build_release.py`). One folder `dist/ds1rand/` holds:
+  - `ds1rand.exe` (the UI) and `ds1rand-cli.exe` (the command line), sharing one runtime;
+  - `_internal/` with the vanilla baseline, the reference catalogue and the paramdefs it needs (`data/`, `ds1paramdefs/Defs`, `Meta`, `Community Row Names`).
+- The build script zips it as `dist/ds1rand-<version>-win64.zip` (about 80 MB) and smoke-tests the build: the CLI version and the UI starting (`--smoke`).
+- `ds1rand/paths.py` resolves data from the bundle when frozen. The default output goes next to the executables.
+- Version in `ds1rand/__init__.py` (1.0.0); `ds1rand` / `ds1rand-cli` are also project scripts.
+- Verified: the packaged CLI writes output byte-identical to a source run for the same seed. Checking this found and fixed a per-process nondeterminism: the projectile spell pool iterated a set of graph nodes, so string hashing changed enemy projectile visuals between runs of the same seed. `tests/test_reproducible.py` now runs every feature in two processes with different hash seeds.
 
 ## Audit
 The audit and catalogue register lives in [AUDIT.md](AUDIT.md). No feature randomizer ships until its catalogue coverage is complete.

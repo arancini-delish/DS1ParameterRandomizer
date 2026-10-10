@@ -9,11 +9,13 @@ Work runs in a background thread so the window stays responsive.
 from __future__ import annotations
 
 import random
+import sys
 import traceback
 from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from ds1rand import __version__
 from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.features.rings import Tier
 from ds1rand.features.spells import PRESETS as SPELL_PRESETS
@@ -653,7 +655,7 @@ class AppearanceTab(QtWidgets.QWidget):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("DS1 Parameter Randomizer")
+        self.setWindowTitle(f"DS1 Parameter Randomizer {__version__}")
         self.settings = QtCore.QSettings("ds1rand", "ds1rand")
         self._loading = False
         self._thread: QtCore.QThread | None = None
@@ -938,4 +940,6 @@ def main() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     window = MainWindow()
     window.show()
+    if "--smoke" in sys.argv[1:]:  # packaging check: start, show the window, quit
+        QtCore.QTimer.singleShot(1500, app.quit)
     return app.exec()

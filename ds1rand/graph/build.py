@@ -21,8 +21,9 @@ from ds1rand.graph.msb import extract_msb_edges, map_files
 from ds1rand.graph.params import extract_param_edges
 from ds1rand.graph.tae import anibnd_files, extract_tae_edges
 from ds1rand.io.install import GameInstall
+from ds1rand.paths import DATA_DIR
 
-CATALOGUE_DIR = Path(__file__).resolve().parents[2] / "data" / "catalogue"
+CATALOGUE_DIR = DATA_DIR / "catalogue"
 SOURCES_FILE = "sources.json"
 HARDCODED_FILE = "hardcoded.toml"
 

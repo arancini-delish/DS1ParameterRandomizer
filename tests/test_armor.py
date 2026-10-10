@@ -4,7 +4,9 @@ import statistics
 
 import pytest
 
-from ds1rand.features.armor import RESIDENT, ArmorConfig, ArmorTier, is_pinned, randomize_armor
+from ds1rand.features.armor import (
+    RATING_WEIGHTS, RESIDENT, ArmorConfig, ArmorTier, is_pinned, randomize_armor, slot_of,
+)
 from ds1rand.session import Session
 
 ARMOR_SLOTS = ("equip_Helm", "equip_Armer", "equip_Gaunt", "equip_Leg")
@@ -29,9 +31,26 @@ def test_pinned_rows_untouched(session, results):
         assert session.store.values("EquipParamProtector", armor_id) == armor.row_values(armor_id)
 
 
-def test_rarer_tiers_are_worth_more(results):
+def test_ratings_follow_tiers_and_vanilla(results):
     means = [statistics.mean(r.value for r in results if r.tier == t) for t in ArmorTier]
-    assert means == sorted(means) and means[0] < 0.9 and means[-1] > 1.25
+    assert means == sorted(means) and means[0] < 0.4 and means[-1] > 0.85
+    assert 0.4 < statistics.mean(r.value for r in results) < 0.6  # vanilla ratings average 0.5
+
+
+def test_stats_are_generated_within_vanilla_ranges(session, results):
+    armor = session.base.params["EquipParamProtector"]
+    names = session.base.text[12][1]
+    rows = [armor.row_values(a) for a in armor.rows if not is_pinned(a, armor.row_values(a), names)]
+    moved = 0
+    for r in results:
+        old, new = armor.row_values(r.armor_id), session.store.values("EquipParamProtector", r.armor_id)
+        same_slot = [row for row in rows if slot_of(row) == slot_of(old)]
+        for name in RATING_WEIGHTS:
+            values = [row[name] for row in same_slot]
+            assert min(values) - 0.05 <= new[name] <= max(values) + 0.05
+        # Generated, not scaled: stats are not tied to the piece's vanilla proportions.
+        moved += (new["defenseMagic"] > old["defenseMagic"]) != (new["defensePhysics"] > old["defensePhysics"])
+    assert moved > len(results) // 4
 
 
 def test_sets_share_their_tier(results):

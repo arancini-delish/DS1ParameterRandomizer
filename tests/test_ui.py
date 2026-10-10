@@ -77,3 +77,14 @@ def test_enemies_tab(window):
     assert window.preset_combo.currentText() == CUSTOM
     settings = window.current_preset().enemies
     assert settings.bosses is True and settings.speed is False
+
+
+def test_weapons_tab(window):
+    window.preset_combo.setCurrentText("Easy")
+    tab = window.weapons_tab
+    assert tab.distribution.values() == BUILTIN["Easy"].weapons.tier_weights
+    tab.shields.setChecked(False)
+    tab.moveset_chance.setValue(60)
+    assert window.preset_combo.currentText() == CUSTOM
+    settings = window.current_preset().weapons
+    assert settings.shields is False and settings.moveset_chance == 0.6

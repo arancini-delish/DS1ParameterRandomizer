@@ -1,7 +1,7 @@
 """The ds1rand window (Phase 7 prototype).
 
 Top: global preset (built-ins, Custom), import/export of preset files and share strings, game folder, seed, output.
-Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour) and Install (what the
+Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons) and Install (what the
 run would build on: other mods' changes, previous ds1rand output). Bottom: Validate / Randomize and the log.
 Work runs in a background thread so the window stays responsive.
 """
@@ -19,11 +19,13 @@ from ds1rand.features.spells import PRESETS as SPELL_PRESETS
 from ds1rand.features.spells import SpellTier
 from ds1rand.features.enemies import PRESETS as ENEMY_PRESETS
 from ds1rand.features.enemies import BehaviourTier
+from ds1rand.features.weapons import PRESETS as WEAPON_PRESETS
+from ds1rand.features.weapons import WeaponTier
 from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESETS
 from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
-from ds1rand.presets.schema import BUILTIN, EnemiesSettings, Preset, ProjectilesSettings, RingsSettings, SpellsSettings
+from ds1rand.presets.schema import BUILTIN, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
 from ds1rand.ui.widgets import DistributionEditor
 
@@ -405,6 +407,101 @@ class EnemiesTab(QtWidgets.QWidget):
         self.results.resizeColumnsToContents()
 
 
+class WeaponsTab(QtWidgets.QWidget):
+    changed = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.enabled = QtWidgets.QCheckBox("Randomize weapons and shields")
+        self.enabled.toggled.connect(self._toggled)
+        layout.addWidget(self.enabled)
+
+        self.options = QtWidgets.QWidget()
+        options = QtWidgets.QHBoxLayout(self.options)
+        options.setContentsMargins(0, 0, 0, 0)
+        tiers = QtWidgets.QGroupBox("Rarity distribution")
+        tiers_layout = QtWidgets.QVBoxLayout(tiers)
+        self.distribution = DistributionEditor([t.name.title() for t in WeaponTier], WEAPON_PRESETS)
+        self.distribution.changed.connect(self.changed)
+        tiers_layout.addWidget(self.distribution)
+        options.addWidget(tiers)
+        right = QtWidgets.QGroupBox("Options")
+        right_layout = QtWidgets.QVBoxLayout(right)
+        self.weapons = QtWidgets.QCheckBox("Weapons (catalysts, talismans, ammo and fists stay vanilla)")
+        self.shields = QtWidgets.QCheckBox("Shields")
+        self.isolate_npcs = QtWidgets.QCheckBox("NPCs and invaders keep vanilla weapons")
+        self.write_descriptions = QtWidgets.QCheckBox("Write rarity, moveset and effects into the descriptions")
+        for box in (self.weapons, self.shields, self.isolate_npcs, self.write_descriptions):
+            box.toggled.connect(self.changed)
+            right_layout.addWidget(box)
+        chances = QtWidgets.QFormLayout()
+        self.moveset_chance, self.effect_chance, self.element_chance = (self._percent() for _ in range(3))
+        chances.addRow("Chance of another moveset of the same type", self.moveset_chance)
+        chances.addRow("Chance of each added effect (on hit, while held)", self.effect_chance)
+        chances.addRow("Chance of part of the damage becoming elemental", self.element_chance)
+        right_layout.addLayout(chances)
+        options.addWidget(right)
+        layout.addWidget(self.options)
+
+        self.results = QtWidgets.QTableWidget(0, 6)
+        self.results.setHorizontalHeaderLabels(["Weapon", "Rarity", "Value", "Moveset of", "Effects", "Changes"])
+        self.results.horizontalHeader().setStretchLastSection(True)
+        self.results.verticalHeader().setVisible(False)
+        self.results.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        layout.addWidget(self.results, stretch=1)
+
+    def _percent(self) -> QtWidgets.QSpinBox:
+        spin = QtWidgets.QSpinBox()
+        spin.setRange(0, 100)
+        spin.setSuffix(" %")
+        spin.valueChanged.connect(self.changed)
+        return spin
+
+    def _toggled(self, checked: bool) -> None:
+        self.options.setEnabled(checked)
+        self.changed.emit()
+
+    def settings(self) -> WeaponsSettings:
+        return WeaponsSettings(
+            enabled=self.enabled.isChecked(), tier_weights=self.distribution.values(),
+            weapons=self.weapons.isChecked(), shields=self.shields.isChecked(),
+            moveset_chance=self.moveset_chance.value() / 100, effect_chance=self.effect_chance.value() / 100,
+            element_chance=self.element_chance.value() / 100, isolate_npcs=self.isolate_npcs.isChecked(),
+            write_descriptions=self.write_descriptions.isChecked(),
+        )
+
+    def apply(self, settings: WeaponsSettings) -> None:
+        widgets = [self.enabled, self.distribution, self.weapons, self.shields, self.isolate_npcs,
+                   self.write_descriptions, self.moveset_chance, self.effect_chance, self.element_chance]
+        for widget in widgets:
+            widget.blockSignals(True)
+        self.enabled.setChecked(settings.enabled)
+        self.distribution.set_values(settings.tier_weights)
+        self.weapons.setChecked(settings.weapons)
+        self.shields.setChecked(settings.shields)
+        self.isolate_npcs.setChecked(settings.isolate_npcs)
+        self.write_descriptions.setChecked(settings.write_descriptions)
+        self.moveset_chance.setValue(round(settings.moveset_chance * 100))
+        self.effect_chance.setValue(round(settings.effect_chance * 100))
+        self.element_chance.setValue(round(settings.element_chance * 100))
+        for widget in widgets:
+            widget.blockSignals(False)
+        self.options.setEnabled(settings.enabled)
+
+    def show_results(self, result: RunResult) -> None:
+        names = result.weapon_names
+        self.results.setRowCount(len(result.weapons))
+        for row, w in enumerate(result.weapons):
+            changes = ", ".join(f"{k} {v:g}" if isinstance(v, (int, float)) else k for k, v in w.changes.items()
+                                if not k.startswith(("residentSpEffect", "spEffectBehavior")))
+            moveset = names.get(w.moveset_from, str(w.moveset_from)) if w.moveset_from else "-"
+            for col, text in enumerate((names.get(w.weapon_id, str(w.weapon_id)), w.tier.name.title(),
+                                        f"{w.value:.2f}", moveset, "; ".join(w.effects) or "-", changes)):
+                self.results.setItem(row, col, QtWidgets.QTableWidgetItem(text))
+        self.results.resizeColumnsToContents()
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -431,6 +528,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.enemies_tab = EnemiesTab()
         self.enemies_tab.changed.connect(self._settings_edited)
         self.tabs.addTab(self.enemies_tab, "Enemy Behaviour")
+        self.weapons_tab = WeaponsTab()
+        self.weapons_tab.changed.connect(self._settings_edited)
+        self.tabs.addTab(self.weapons_tab, "Weapons")
         self.install_view = QtWidgets.QPlainTextEdit(readOnly=True)
         self.install_view.setPlaceholderText("Validate the install to see what a run would build on.")
         self.tabs.addTab(self.install_view, "Install")
@@ -508,7 +608,8 @@ class MainWindow(QtWidgets.QMainWindow):
         seed = int(self.seed.text()) if self.seed.text() else None
         name = self.preset_combo.currentText()
         return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings(),
-                      projectiles=self.projectiles_tab.settings(), enemies=self.enemies_tab.settings())
+                      projectiles=self.projectiles_tab.settings(), enemies=self.enemies_tab.settings(),
+                      weapons=self.weapons_tab.settings())
 
     def apply_preset(self, preset: Preset) -> None:
         self._loading = True
@@ -516,6 +617,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.spells_tab.apply(preset.spells)
         self.projectiles_tab.apply(preset.projectiles)
         self.enemies_tab.apply(preset.enemies)
+        self.weapons_tab.apply(preset.weapons)
         self.seed.setText("" if preset.seed is None else str(preset.seed))
         builtin = BUILTIN.get(preset.name)
         same = builtin is not None and _sections(builtin) == _sections(preset)
@@ -603,6 +705,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.enemies_tab.enabled.isChecked() and not self.enemies_tab.distribution.is_valid():
             QtWidgets.QMessageBox.warning(self, "Invalid settings", "Enemy behaviour tier weights must not all be 0.")
             return
+        if self.weapons_tab.enabled.isChecked() and not self.weapons_tab.distribution.is_valid():
+            QtWidgets.QMessageBox.warning(self, "Invalid settings", "Weapon rarity weights must not all be 0.")
+            return
         preset = self.current_preset()
         self.settings.setValue("preset", preset.to_json())
         out_dir = None if self.in_place.isChecked() else DEFAULT_OUT
@@ -645,6 +750,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.spells_tab.show_results(result)
         self.projectiles_tab.show_results(result)
         self.enemies_tab.show_results(result)
+        self.weapons_tab.show_results(result)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
 
@@ -654,7 +760,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def _sections(preset: Preset) -> tuple:
     """The feature settings of a preset (what decides whether it still matches a built-in)."""
-    return preset.rings, preset.spells, preset.projectiles, preset.enemies
+    return preset.rings, preset.spells, preset.projectiles, preset.enemies, preset.weapons
 
 
 def main() -> int:

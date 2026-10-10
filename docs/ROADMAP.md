@@ -162,11 +162,16 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - At full strength every value is drawn within sensible extremes (the vanilla range per field).
    - See AUDIT 41-42.
 
-### Phase 7 — UI & presets (prototype done; grows with each Phase 6 feature)
+### Phase 7 — UI & presets (done)
 - `ds1rand/presets/schema.py`: versioned `Preset` (seed + one section per feature: rings, spells, projectiles), JSON files and share strings (`DS1R1-` + base64url(zlib(JSON))); unknown keys ignored, missing keys default, newer versions refused. Built-in global presets Easy / Standard / Hard / Misery.
 - `ds1rand/run.py`: `run(preset, install, out_dir)` / `validate(install)`, shared by `tools/randomize.py` (now `--preset`, `--preset-file`, `--share`, `--print-share`) and the UI.
 - `ds1rand/ui` (`python -m ds1rand.ui`): global preset bar with import/export of files and share strings, game folder, seed, output (out folder or in place); tabs Rings (enable, `DistributionEditor` for tier weights with presets and shares, NPC isolation, summaries, results table), Spells, Projectiles, Enemy Behaviour (disabled until built), Install (bases, other mods' changes, conflicts); Validate / Randomize run in a worker thread; log pane; last game folder and preset remembered (QSettings).
-- Still to come: per-feature tabs as Phase 6 features land, an Audit tab (graph/coverage browser), a spoiler/changes log file.
+- Per-feature tabs for every Phase 6 feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons, Armor, Body & Face), all in the preset.
+- Spoiler log (done): `ds1rand/spoiler.py`. Every run writes `ds1rand-spoiler.txt` next to its output. It starts with the seed, preset, share string and what other mods changed, then has one section per feature listing every change. Optional (UI checkbox, `--no-spoiler`).
+- Audit tab (done): `ds1rand/ui/audit.py` on `ds1rand/catalogue/inspect.py`. After Validate or Randomize it shows:
+  - coverage per param (rows, used, shared, per feature, unresolved references, rows changed this run);
+  - a row browser (filter by ID or name) with usage, subtype, references both ways (source and confidence) and values in vanilla / base / this run.
+- Phase 7 is done; packaging (Phase 8) is next.
 
 ### Phase 8 — Packaging
 - PyInstaller build; ship `data/` alongside.

@@ -9,6 +9,7 @@ Settings come from a built-in preset (`--preset Standard`), a preset file (`--pr
 `--no-projectiles` / `--no-enemies` /
 `--no-weapons` / `--no-armor` /
 `--no-appearance` turn a feature off.
+A spoiler log (ds1rand-spoiler.txt) is written next to the output unless `--no-spoiler`.
 
 Usage: uv run python tools/randomize.py [--preset NAME | --preset-file PATH | --share STRING] [--rings PRESET]
                                         [--no-rings] [--no-spells] [--no-projectiles]
@@ -38,6 +39,7 @@ def main() -> None:
     parser.add_argument("--no-weapons", action="store_true")
     parser.add_argument("--no-armor", action="store_true")
     parser.add_argument("--no-appearance", action="store_true")
+    parser.add_argument("--no-spoiler", action="store_true", help="Do not write ds1rand-spoiler.txt")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--in-place", action="store_true", help="Write into the game folder")
     parser.add_argument("--game-dir")
@@ -70,7 +72,7 @@ def main() -> None:
         preset.seed = args.seed
 
     install = GameInstall(Path(args.game_dir)) if args.game_dir else GameInstall.default()
-    result = run(preset, install, out_dir=None if args.in_place else DEFAULT_OUT)
+    result = run(preset, install, out_dir=None if args.in_place else DEFAULT_OUT, spoiler=not args.no_spoiler)
     for ring in result.rings:
         print(f"  {ring.ring_id} {result.ring_names.get(ring.ring_id, '?'):32} {ring.tier.name:9} "
               f"{', '.join(ring.summaries)}")

@@ -173,6 +173,14 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
   - a row browser (filter by ID or name) with usage, subtype, references both ways (source and confidence) and values in vanilla / base / this run.
 - Phase 7 is done; packaging (Phase 8) is next.
 
+### Tuning after release (1.0.2)
+- Humanity phantoms (c4170-c4172) swarm and attack many times a second. Their projectiles are now light:
+  - damaging donors only, at most 2 bullets, single shots;
+  - no streams or lingering clouds, no chained effect or added status;
+  - at most 40 total damage.
+- Weapon tier values are raised: Common 0.92, Uncommon 1.13, Rare 1.35, Legendary 1.6 (were 0.82 / 1.0 / 1.18 / 1.4). The base damage roll is widened to x0.65-1.9 so the higher tiers are reachable.
+- Body and face above 100% strength: characters created with body scales beyond -100..100 failed to join in Seamless Co-op. Body scales now stay within -100..100 and the face templates within vanilla extremes; NPC faces still use the full u8 range.
+
 ### Phase 8 — Packaging (done)
 - PyInstaller build (`packaging/ds1rand.spec`, `uv run --group build python tools/build_release.py`). One folder `dist/ds1rand/` holds:
   - `ds1rand.exe` (the UI) and `ds1rand-cli.exe` (the command line), sharing one runtime;

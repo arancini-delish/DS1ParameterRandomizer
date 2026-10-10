@@ -72,6 +72,13 @@ ENEMY_PRESETS = {
 POWER_LIMITS = (0.25, 4.0)
 # Bullets that follow or circle their owner's body parts (dummy polys): only bullets of the same model fit them.
 MODEL_BOUND_MOTIONS = ("orbit", "attached")
+# Swarming enemies that attack many times a second (Humanity phantoms: large, medium, small) only get light
+# projectiles: damaging ones with at most LIGHT_MAX_BULLETS bullets, one shot each, no streams or lingering clouds,
+# no chained effect or added status, and at most LIGHT_DAMAGE_CAP total damage (a swarm landing 5-10 hits a second
+# must not kill outright; vanilla hits for 90-140, but only on contact).
+LIGHT_MODELS = frozenset({"c4170", "c4171", "c4172"})
+LIGHT_MAX_BULLETS = 2
+LIGHT_DAMAGE_CAP = 40
 
 THROWABLES = frozenset({290, 291, 292, 293, 297})  # Throwing Knife, Poison Throwing Knife, Firebomb, Dung Pie,
                                                      # Black Firebomb
@@ -252,8 +259,20 @@ class _ProjectileBuilder:
         if self.cross(slot):
             motion, loaded = self.motion(slot.root), self.loaded(slot)
             same = [r for r in self.any_roots if self.motion(r) == motion and self.effects(r) <= loaded]
-            return same or [slot.root]
-        return [s.root for s in self.by_group[slot.group]] or [slot.root]
+        else:
+            same = [s.root for s in self.by_group[slot.group]]
+        if slot.group in LIGHT_MODELS:
+            same = [r for r in same if self.light(r)]
+        return same or [slot.root]
+
+    def light(self, root: int) -> bool:
+        """A chain cheap enough for swarming enemies: few bullets, single shots, nothing lingering or streaming, and
+        an attack (not a heal or buff)."""
+        chain = bullet_chain(self.session.base, root)
+        classes = [classify_bullet(self.bullets.row_values(b)) for b in chain]
+        return (len(chain) <= LIGHT_MAX_BULLETS
+                and not any({"multi", "stream", "lingering"} & set(c.qualifiers) for c in classes)
+                and chain_damage(self.session, root, self.attack_table.get(root, "AtkParam_Npc")) > 0)
 
     def pools(self, slot: Slot) -> tuple[list, list]:
         if slot.owner == "player":
@@ -285,11 +304,19 @@ class _ProjectileBuilder:
                 scale = own / theirs
         power = TIER_POWER[tier] * scale
         limits = (POWER_LIMITS[0] * scale, POWER_LIMITS[1] * scale)
+        options = self.options
+        if slot.group in LIGHT_MODELS:
+            options = ChainOptions(self.options.visual_chance, self.options.motion_chance, 0.0, 0.0)
+            theirs = chain_damage(self.session, donor, source(donor))
+            if theirs:
+                cap = LIGHT_DAMAGE_CAP / theirs
+                limits = (min(limits[0], cap), min(limits[1], cap))
+                power = min(power, cap)
         result = ProjectileResult(slot, tier, donor)
         visuals, chains = self.pools(slot)
         narrow = self.limits.get((slot.param, "refId"), 2**31 - 1) <= 32767
         result.root = self.chains.build(
-            donor, power, result, attack_param=slot.attack_param, options=self.options, visual_pool=visuals,
+            donor, power, result, attack_param=slot.attack_param, options=options, visual_pool=visuals,
             chain_pool=chains, narrow_root=narrow, limits=limits, attack_source=source,
         )
         updates = {"refId": result.root}

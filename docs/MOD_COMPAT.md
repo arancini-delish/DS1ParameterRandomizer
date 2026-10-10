@@ -93,3 +93,5 @@ Checked 2026-10-11 against `SeamlessCoop/ds1sc.dll`.
 Joining needs identical game files on every PC. ds1rand's output is deterministic per seed, preset and base, but the base includes the other mods' output.
 
 `ds1rand.fingerprint` hashes what the game loads: params, item / menu text, events, maps, AI / talk scripts and sfx bundles. Validate shows the code, and so does `ds1rand-cli --fingerprint`, so players can compare installs.
+
+Result (2026-10-11): all five bisect variants joined fine (body and face at the default 50%). A run with body and face at 400% did not, and turning body and face off fixed it. 1.0.2 keeps everything a player character can carry within vanilla's ranges (body scales -100..100, face templates within vanilla extremes). Characters created with the 400% output need to be recreated.

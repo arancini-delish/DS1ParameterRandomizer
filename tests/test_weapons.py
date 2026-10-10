@@ -42,7 +42,7 @@ def test_scaling_only_where_it_scales_damage(session, results):
 
 def test_rarer_tiers_are_worth_more(results):
     means = [statistics.mean(r.value for r in results if r.tier == t) for t in WeaponTier]
-    assert means == sorted(means) and means[0] < 0.95 and means[-1] > 1.2
+    assert means == sorted(means) and 0.85 < means[0] < 1.0 and means[-1] > 1.45
 
 
 def test_starting_classes_can_use_their_weapons(session, results):

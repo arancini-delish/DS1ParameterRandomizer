@@ -31,6 +31,16 @@ Re-running is safe. ds1rand always rebuilds from the files as the other mods lef
 
 Play offline: modified params are not safe online.
 
+### Co-op (Seamless Co-op)
+Every player must load exactly the same game files. Joining fails in confusing ways otherwise: for example, a guest spawns next to the host but never properly joins.
+
+1. One player runs everything: item → enemy → fog gate randomizers, then ds1rand.
+2. Share the resulting game files with the others, or have everyone use the same settings and seeds on the same starting files.
+3. Each player presses **Validate install** (or runs `ds1rand-cli.exe --fingerprint`).
+4. Compare the "Game files fingerprint" codes. They must be identical. The per-group codes (params, text, events, maps, scripts, effects) show which kind of file differs.
+
+ds1rand never touches the multiplayer items (soapstones, eye orbs, Black Separation Crystal...) or what they use, or the Seamless Co-op items (goods 389000-389008, which the mod adds in memory).
+
 ## From source
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 

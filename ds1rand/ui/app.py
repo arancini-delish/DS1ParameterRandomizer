@@ -910,10 +910,13 @@ class MainWindow(QtWidgets.QMainWindow):
         lines = [f"GameParam base: {result.gameparam_base}", f"Item text base: {result.text_base}", ""]
         lines += ["Changes by other mods (kept):"] + [f"  {c}" for c in result.foreign or ["none"]]
         lines += ["", "Conflicts with the previous ds1rand run:"] + [f"  {c}" for c in result.conflicts or ["none"]]
+        if result.fingerprint is not None:
+            lines += ["", result.fingerprint.text(),
+                      "Co-op partners must have the same code (validate after copying the output into the game)."]
         self.install_view.setPlainText("\n".join(lines))
         self.tabs.setCurrentWidget(self.install_view)
         self.audit_tab.set_session(result.session)
-        self._log("Validation done")
+        self._log("Validation done" + (f". {result.fingerprint.text()}" if result.fingerprint else ""))
 
     def _show_run(self, result: RunResult) -> None:
         self.rings_tab.show_results(result)

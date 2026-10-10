@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ds1rand.features.armor import ArmorConfig, ArmorResult, randomize_armor
 from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize_enemies
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
 from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
@@ -35,6 +36,8 @@ class RunResult:
     enemies: list[EnemyResult] = field(default_factory=list)
     weapons: list[WeaponResult] = field(default_factory=list)
     weapon_names: dict[int, str] = field(default_factory=dict)
+    armor: list[ArmorResult] = field(default_factory=list)
+    armor_names: dict[int, str] = field(default_factory=dict)
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -110,6 +113,13 @@ def run(
         log(f"Weapons: {len(result.weapons)} randomized ({sum(r.shield for r in result.weapons)} shields, "
             f"{sum(bool(r.moveset_from) for r in result.weapons)} new movesets)")
 
+    if preset.armor.enabled:
+        settings = preset.armor
+        config = ArmorConfig(tier_weights=tuple(settings.tier_weights), **{f: getattr(settings, f) for f in (
+            "set_tiers", "effect_chance", "isolate_npcs", "write_descriptions")})
+        result.armor = randomize_armor(session, config, random.Random(f"{seed}-armor"))
+        log(f"Armor: {len(result.armor)} pieces randomized ({sum(bool(r.effects) for r in result.armor)} with effects)")
+
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
     log(f"Wrote {', '.join(result.written) or 'nothing'} to {result.target}")
@@ -127,6 +137,7 @@ def _result(session: Session, seed: int) -> RunResult:
         foreign=[d.summary() for d in session.foreign_changes()["params"]],
         ring_names=dict(names),
         spell_names=spell_names,
+        armor_names={k: v for k, v in session.base.text.get(12, ("", {}))[1].items() if v},
         weapon_names={k: v for k, v in session.base.text.get(11, ("", {}))[1].items() if v},
         goods_names={**session.base.text.get(10, ("", {}))[1],
                      **{k: v for k, v in session.base.text.get(111, ("", {}))[1].items() if v}},

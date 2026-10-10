@@ -129,6 +129,7 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - Shields value guard most.
    - Starting gear is capped to class stats, and NPCs keep vanilla copies.
    - Preset section, UI Weapons tab, `--no-weapons`.
+   - Amendment: split damage counts for less in the value (a 50/50 split of 300 is worth about 200 of one type), and Rare / Legendary weapons get x1.05 / x1.1 base damage.
    - The original scope follows.
 5. **Weapons** (tab) — rarity tiers with a cost model, like rings and spells:
    - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight and triggered SpEffects.
@@ -141,6 +142,11 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - Pins: fists (900000), catalysts and talismans, ammo.
    - Constraint: every starting class can use its starting weapons and shield with its starting stats.
    - See AUDIT 33-38.
+6. **Armor** (done, pending in-game check): `ds1rand/features/armor.py`.
+   - Rarity per set (or per piece). The value combines defense, status resistance, poise and weight. Commons come out around 0.85x vanilla, Legendaries around 1.3x.
+   - A ring-style passive goes into a free slot (vanilla effects are kept). Rarity and effect head the long description.
+   - NPCs keep vanilla copies. Preset section, UI Armor tab, `--no-armor`.
+   - The original scope follows.
 6. **Armor** (tab) — rarity tiers:
    - Rarer armor may get better weight, poise, defenses / resistances and triggered SpEffects.
    - SpEffects come from any fitting SpEffect, with ring-style text in the description.

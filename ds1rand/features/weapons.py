@@ -8,7 +8,9 @@ value is closest to the target wins, so common weapons trade strengths for weakn
     value = OFFENSE x ln(attack rating ratio) + WEIGHT x ln(weight ratio) + REQUIREMENTS x ln(requirement ratio)
             + GUARD x ln(guard ratio) + added effects
 The attack rating is taken at reference stats (`REFERENCE_SCALING`): scaling only counts for the damage it scales,
-so heavy faith scaling on a weapon with little magic damage is worth little. Scaling rules follow the engine: strength
+so heavy faith scaling on a weapon with little magic damage is worth little, and split damage counts for less than
+the same total of one type (`SPLIT_PENALTY`; defense is subtracted per type). Rare and legendary weapons get a small
+base damage bonus on top (`TIER_DAMAGE`). Scaling rules follow the engine: strength
 / dexterity scale physical damage, intelligence / faith scale magic damage, fire and lightning do not scale; scaling
 is only given to stats that scale a damage type the weapon deals above a negligible share (`NEGLIGIBLE`). Some weapons
 move part of their physical damage into an element (`element_chance`), which can open intelligence / faith scaling.
@@ -80,6 +82,9 @@ MOVESET = ("wepmotionOneHandId", "wepmotionBothHandId", "spAtkcategory", "behavi
 
 NEGLIGIBLE = 0.1  # damage share below which a damage type gets no scaling
 REFERENCE_SCALING = 0.5  # stat curve value at reference stats (roughly 30 in a stat)
+SPLIT_PENALTY = 2 / 3
+# Rare and legendary weapons hit a little harder on top of their value (base damage multiplier).
+TIER_DAMAGE = {WeaponTier.RARE: 1.05, WeaponTier.LEGENDARY: 1.1}
 MAX_SCALING = 150.0
 MAX_REQUIREMENT = 60
 SCALED_REQUIREMENT = (40, 8)  # scaling at or above [0] needs at least [1] + scaling / 10 in that stat
@@ -132,12 +137,20 @@ def is_pinned(weapon_id: int, values: dict, pinned=frozenset({FISTS})) -> bool:
 
 
 def offense(values: dict) -> float:
-    """Attack rating at reference stats."""
+    """Effective attack rating at reference stats. Defense in DS1 is subtracted per damage type, so damage split
+    across types hits for less than the same total of one type: the rating loses `SPLIT_PENALTY` x the share outside
+    the largest type (a 50/50 split of 300 counts as 200)."""
     physical, magic = values["attackBasePhysics"], values["attackBaseMagic"]
-    total = sum(values[f] for f in DAMAGE)
-    total += physical * sum(values[f] for f in PHYSICAL_SCALING) / 100 * REFERENCE_SCALING
-    total += magic * sum(values[f] for f in MAGIC_SCALING) / 100 * REFERENCE_SCALING
-    return total
+    parts = [
+        physical * (1 + sum(values[f] for f in PHYSICAL_SCALING) / 100 * REFERENCE_SCALING),
+        magic * (1 + sum(values[f] for f in MAGIC_SCALING) / 100 * REFERENCE_SCALING),
+        values["attackBaseFire"],
+        values["attackBaseThunder"],
+    ]
+    total = sum(parts)
+    if total <= 0:
+        return 0.0
+    return total * (1 - SPLIT_PENALTY * (1 - max(parts) / total))
 
 
 def guard(values: dict) -> float:
@@ -338,6 +351,8 @@ class _WeaponBuilder:
             source = self.weapons.row_values(moveset_from)
             best.update({f: source[f] for f in MOVESET})
             result.moveset_from = moveset_from
+        for name in DAMAGE:
+            best[name] = round(best[name] * TIER_DAMAGE.get(tier, 1.0))
         result.effects = self.apply_effects(weapon_id, best, chosen)
         result.value = math.exp(value(best, old, shield, effect_value))
         result.changes = {f: best[f] for f in best if best[f] != old[f]}

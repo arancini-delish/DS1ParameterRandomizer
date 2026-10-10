@@ -16,7 +16,7 @@ def test_json_and_share_string_round_trip(tmp_path):
 
 def test_share_string_shape():
     text = BUILTIN["Standard"].to_share_string()
-    assert text.startswith(f"DS1R{VERSION}-") and len(text) < 600
+    assert text.startswith(f"DS1R{VERSION}-") and len(text) < 900
     with pytest.raises(ValueError):
         Preset.from_share_string("hello")
 

@@ -1,6 +1,6 @@
 """Presets: every setting of a run, versioned, as JSON files or a short share string.
 
-A preset holds one section per feature (rings, spells, projectiles, enemies, weapons, armor) plus the
+A preset holds one section per feature (rings, spells, projectiles, enemies, weapons, armor, appearance) plus the
 seed. Share strings are "DS1R" + version + "-" + base64url(zlib(JSON)), so pasting one reproduces a run exactly.
 Unknown keys are ignored and missing keys take defaults, so presets from older versions keep loading.
 """
@@ -104,6 +104,15 @@ class ArmorSettings:
 
 
 @dataclass
+class AppearanceSettings:
+    enabled: bool = True
+    npc_faces: float = 0.5
+    player_faces: float = 0.5
+    physiques: float = 0.5
+    npc_bodies: float = 0.5
+
+
+@dataclass
 class Preset:
     name: str = "Standard"
     seed: int | None = None  # None: pick one at random when running
@@ -113,6 +122,7 @@ class Preset:
     enemies: EnemiesSettings = field(default_factory=EnemiesSettings)
     weapons: WeaponsSettings = field(default_factory=WeaponsSettings)
     armor: ArmorSettings = field(default_factory=ArmorSettings)
+    appearance: AppearanceSettings = field(default_factory=AppearanceSettings)
 
     def to_dict(self) -> dict:
         return {"version": VERSION, **asdict(self)}
@@ -124,7 +134,8 @@ class Preset:
         sections = {}
         for key, settings_cls in (("rings", RingsSettings), ("spells", SpellsSettings),
                                   ("projectiles", ProjectilesSettings), ("enemies", EnemiesSettings),
-                                  ("weapons", WeaponsSettings), ("armor", ArmorSettings)):
+                                  ("weapons", WeaponsSettings), ("armor", ArmorSettings),
+                                  ("appearance", AppearanceSettings)):
             values = _known(settings_cls, data.get(key, {}))
             for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights"):
                 if name in values:

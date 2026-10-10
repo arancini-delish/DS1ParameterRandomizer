@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ds1rand.features.appearance import AppearanceConfig, AppearanceResult, randomize_appearance
 from ds1rand.features.armor import ArmorConfig, ArmorResult, randomize_armor
 from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize_enemies
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
@@ -38,6 +39,7 @@ class RunResult:
     weapon_names: dict[int, str] = field(default_factory=dict)
     armor: list[ArmorResult] = field(default_factory=list)
     armor_names: dict[int, str] = field(default_factory=dict)
+    appearance: AppearanceResult | None = None
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -119,6 +121,14 @@ def run(
             "set_tiers", "effect_chance", "isolate_npcs", "write_descriptions")})
         result.armor = randomize_armor(session, config, random.Random(f"{seed}-armor"))
         log(f"Armor: {len(result.armor)} pieces randomized ({sum(bool(r.effects) for r in result.armor)} with effects)")
+
+    if preset.appearance.enabled:
+        settings = preset.appearance
+        config = AppearanceConfig(settings.npc_faces, settings.player_faces, settings.physiques, settings.npc_bodies)
+        result.appearance = randomize_appearance(session, config, random.Random(f"{seed}-appearance"))
+        a = result.appearance
+        log(f"Body and face: {len(a.npc_faces)} NPC faces, {len(a.player_faces)} face templates, "
+            f"{len(a.physiques)} physiques, {len(a.npc_bodies)} NPC bodies")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root

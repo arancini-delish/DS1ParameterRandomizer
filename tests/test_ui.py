@@ -97,3 +97,10 @@ def test_armor_tab(window):
     tab.set_tiers.setChecked(False)
     assert window.preset_combo.currentText() == CUSTOM
     assert window.current_preset().armor.set_tiers is False
+
+
+def test_appearance_tab(window):
+    tab = window.appearance_tab
+    tab.sliders["physiques"].setValue(100)
+    assert window.preset_combo.currentText() == CUSTOM
+    assert window.current_preset().appearance.physiques == 1.0 and tab.labels["physiques"].text() == "100%"

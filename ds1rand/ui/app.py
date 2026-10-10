@@ -1,7 +1,7 @@
 """The ds1rand window (Phase 7 prototype).
 
 Top: global preset (built-ins, Custom), import/export of preset files and share strings, game folder, seed, output.
-Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons, Armor) and Install (what the
+Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons, Armor, Body & Face) and Install (what the
 run would build on: other mods' changes, previous ds1rand output). Bottom: Validate / Randomize and the log.
 Work runs in a background thread so the window stays responsive.
 """
@@ -27,7 +27,7 @@ from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESE
 from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
-from ds1rand.presets.schema import BUILTIN, ArmorSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
+from ds1rand.presets.schema import BUILTIN, AppearanceSettings, ArmorSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
 from ds1rand.ui.widgets import DistributionEditor
 
@@ -586,6 +586,66 @@ class ArmorTab(QtWidgets.QWidget):
         self.results.resizeColumnsToContents()
 
 
+class AppearanceTab(QtWidgets.QWidget):
+    changed = QtCore.Signal()
+    PARTS = (("npc_faces", "NPC faces"),
+             ("player_faces", "Character creation face templates (new characters only)"),
+             ("physiques", "Character creation physiques (new characters only)"),
+             ("npc_bodies", "NPC body proportions"))
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.enabled = QtWidgets.QCheckBox("Randomize body and face data")
+        self.enabled.toggled.connect(self._toggled)
+        layout.addWidget(self.enabled)
+        self.options = QtWidgets.QGroupBox("Strength (0% vanilla, 100% every value drawn anew within vanilla extremes)")
+        form = QtWidgets.QFormLayout(self.options)
+        self.sliders, self.labels = {}, {}
+        for key, label in self.PARTS:
+            row = QtWidgets.QHBoxLayout()
+            slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+            slider.setRange(0, 100)
+            value = QtWidgets.QLabel("0%")
+            value.setMinimumWidth(40)
+            slider.valueChanged.connect(lambda v, l=value: l.setText(f"{v}%"))
+            slider.valueChanged.connect(self.changed)
+            row.addWidget(slider)
+            row.addWidget(value)
+            form.addRow(label, row)
+            self.sliders[key], self.labels[key] = slider, value
+        layout.addWidget(self.options)
+        self.summary = QtWidgets.QLabel("")
+        layout.addWidget(self.summary)
+        layout.addStretch()
+
+    def _toggled(self, checked: bool) -> None:
+        self.options.setEnabled(checked)
+        self.changed.emit()
+
+    def settings(self) -> AppearanceSettings:
+        return AppearanceSettings(self.enabled.isChecked(),
+                                  **{key: slider.value() / 100 for key, slider in self.sliders.items()})
+
+    def apply(self, settings: AppearanceSettings) -> None:
+        widgets = [self.enabled, *self.sliders.values()]
+        for widget in widgets:
+            widget.blockSignals(True)
+        self.enabled.setChecked(settings.enabled)
+        for key, slider in self.sliders.items():
+            slider.setValue(round(getattr(settings, key) * 100))
+            self.labels[key].setText(f"{slider.value()}%")
+        for widget in widgets:
+            widget.blockSignals(False)
+        self.options.setEnabled(settings.enabled)
+
+    def show_results(self, result: RunResult) -> None:
+        a = result.appearance
+        self.summary.setText("" if a is None else
+                             f"Randomized {len(a.npc_faces)} NPC faces, {len(a.player_faces)} face templates, "
+                             f"{len(a.physiques)} physiques and {len(a.npc_bodies)} NPC bodies.")
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -618,6 +678,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.armor_tab = ArmorTab()
         self.armor_tab.changed.connect(self._settings_edited)
         self.tabs.addTab(self.armor_tab, "Armor")
+        self.appearance_tab = AppearanceTab()
+        self.appearance_tab.changed.connect(self._settings_edited)
+        self.tabs.addTab(self.appearance_tab, "Body && Face")
         self.install_view = QtWidgets.QPlainTextEdit(readOnly=True)
         self.install_view.setPlaceholderText("Validate the install to see what a run would build on.")
         self.tabs.addTab(self.install_view, "Install")
@@ -696,7 +759,8 @@ class MainWindow(QtWidgets.QMainWindow):
         name = self.preset_combo.currentText()
         return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings(),
                       projectiles=self.projectiles_tab.settings(), enemies=self.enemies_tab.settings(),
-                      weapons=self.weapons_tab.settings(), armor=self.armor_tab.settings())
+                      weapons=self.weapons_tab.settings(), armor=self.armor_tab.settings(),
+                      appearance=self.appearance_tab.settings())
 
     def apply_preset(self, preset: Preset) -> None:
         self._loading = True
@@ -706,6 +770,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.enemies_tab.apply(preset.enemies)
         self.weapons_tab.apply(preset.weapons)
         self.armor_tab.apply(preset.armor)
+        self.appearance_tab.apply(preset.appearance)
         self.seed.setText("" if preset.seed is None else str(preset.seed))
         builtin = BUILTIN.get(preset.name)
         same = builtin is not None and _sections(builtin) == _sections(preset)
@@ -843,6 +908,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.enemies_tab.show_results(result)
         self.weapons_tab.show_results(result)
         self.armor_tab.show_results(result)
+        self.appearance_tab.show_results(result)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
 
@@ -852,7 +918,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def _sections(preset: Preset) -> tuple:
     """The feature settings of a preset (what decides whether it still matches a built-in)."""
-    return preset.rings, preset.spells, preset.projectiles, preset.enemies, preset.weapons, preset.armor
+    return preset.rings, preset.spells, preset.projectiles, preset.enemies, preset.weapons, preset.armor, preset.appearance
 
 
 def main() -> int:

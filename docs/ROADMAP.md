@@ -177,7 +177,9 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - PyInstaller build (`packaging/ds1rand.spec`, `uv run --group build python tools/build_release.py`). One folder `dist/ds1rand/` holds:
   - `ds1rand.exe` (the UI) and `ds1rand-cli.exe` (the command line), sharing one runtime;
   - `_internal/` with the vanilla baseline, the reference catalogue and the paramdefs it needs (`data/`, `ds1paramdefs/Defs`, `Meta`, `Community Row Names`).
-- The build script zips it as `dist/ds1rand-<version>-win64.zip` (about 80 MB) and smoke-tests the build: the CLI version and the UI starting (`--smoke`).
+- The build script zips it as `dist/ds1rand-<version>-win64.zip` (about 80 MB).
+- The folder ships a portable `soulstruct_config.json` with file logging off. Frozen, soulstruct reads its config next to the executable; without one it writes one with the build machine's AppData log path and creates that folder at import. The first build shipped exactly that file and crashed on other machines.
+- The build is smoke-tested as a user gets it: the zip is extracted to a temporary folder and run there with an empty fake user profile (CLI version, UI `--smoke`). The build fails if a shipped text file contains the build machine's home folder, or if running the app writes into its own folder.
 - `ds1rand/paths.py` resolves data from the bundle when frozen. The default output goes next to the executables.
 - Version in `ds1rand/__init__.py` (1.0.0); `ds1rand` / `ds1rand-cli` are also project scripts.
 - Verified: the packaged CLI writes output byte-identical to a source run for the same seed. Checking this found and fixed a per-process nondeterminism: the projectile spell pool iterated a set of graph nodes, so string hashing changed enemy projectile visuals between runs of the same seed. `tests/test_reproducible.py` now runs every feature in two processes with different hash seeds.

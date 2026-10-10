@@ -88,3 +88,12 @@ def test_weapons_tab(window):
     assert window.preset_combo.currentText() == CUSTOM
     settings = window.current_preset().weapons
     assert settings.shields is False and settings.moveset_chance == 0.6
+
+
+def test_armor_tab(window):
+    window.preset_combo.setCurrentText("Hard")
+    tab = window.armor_tab
+    assert tab.distribution.values() == BUILTIN["Hard"].armor.tier_weights
+    tab.set_tiers.setChecked(False)
+    assert window.preset_combo.currentText() == CUSTOM
+    assert window.current_preset().armor.set_tiers is False

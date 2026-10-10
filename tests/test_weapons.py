@@ -6,7 +6,7 @@ import pytest
 
 from ds1rand.features.weapons import (
     CLASS_SLOTS, CLASSES, DAMAGE, MAGIC_SCALING, MOVESET, NEGLIGIBLE, ON_HIT, PHYSICAL_SCALING, WHILE_HELD,
-    WeaponConfig, WeaponTier, is_pinned, randomize_weapons,
+    WeaponConfig, WeaponTier, is_pinned, offense, randomize_weapons,
 )
 from ds1rand.session import Session
 
@@ -118,3 +118,21 @@ def test_deterministic(redirected_install):
         return [(r.weapon_id, r.tier, r.changes, r.effects) for r in
                 randomize_weapons(s, WeaponConfig(), random.Random(seed))]
     assert snapshot(4) == snapshot(4)
+
+
+def test_split_damage_counts_for_less():
+    blank = {f: 0 for f in DAMAGE + PHYSICAL_SCALING + MAGIC_SCALING}
+    single = blank | {"attackBasePhysics": 200}
+    split = blank | {"attackBasePhysics": 150, "attackBaseFire": 150}
+    assert offense(split) == pytest.approx(offense(single))
+
+
+def test_rare_weapons_hit_a_little_harder(session, results):
+    weapons = session.base.params["EquipParamWeapon"]
+
+    def damage_ratio(tier):
+        ratios = [sum(session.store.values("EquipParamWeapon", r.weapon_id)[f] for f in DAMAGE)
+                  / max(1, sum(weapons.row_values(r.weapon_id)[f] for f in DAMAGE))
+                  for r in results if r.tier == tier and not r.shield]
+        return statistics.median(ratios)
+    assert damage_ratio(WeaponTier.RARE) > 1.1 and damage_ratio(WeaponTier.LEGENDARY) > damage_ratio(WeaponTier.RARE)

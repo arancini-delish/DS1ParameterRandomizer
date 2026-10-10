@@ -90,3 +90,13 @@ def load_meta(directory: Path = META_DIR) -> dict[str, ParamMeta]:
 def load_shared_enums(path: Path = PARAMDEFS_DIR / "Shared Param Enums.json") -> dict[str, dict[int, str]]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     return {e["Name"]: {int(o["ID"]): o["Name"] for o in e["Options"]} for e in data["List"]}
+
+
+@functools.cache
+def load_row_names(param: str) -> dict[int, str]:
+    """Community row names (`Community Row Names/<param>.json`; machine-translated from the Japanese row names)."""
+    path = PARAMDEFS_DIR / "Community Row Names" / f"{param}.json"
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    return {e["ID"]: e["Entries"][0] for e in data["Entries"] if e.get("Entries")}

@@ -6,10 +6,11 @@ out/randomized/ (mirroring the game folder: copy its `param` and `msg` folders o
 
 Settings come from a built-in preset (`--preset Standard`), a preset file (`--preset-file`), or a share string
 (`--share`); `--rings PRESET` overrides the ring distribution, `--no-rings` / `--no-spells` /
-`--no-projectiles` turn a feature off.
+`--no-projectiles` / `--no-enemies` turn a feature off.
 
 Usage: uv run python tools/randomize.py [--preset NAME | --preset-file PATH | --share STRING] [--rings PRESET]
-                                        [--no-rings] [--no-spells] [--no-projectiles] [--seed N] [--in-place] [--game-dir DIR] [--print-share]
+                                        [--no-rings] [--no-spells] [--no-projectiles]
+                                        [--no-enemies] [--seed N] [--in-place] [--game-dir DIR] [--print-share]
 """
 import argparse
 from pathlib import Path
@@ -30,6 +31,7 @@ def main() -> None:
     parser.add_argument("--no-rings", action="store_true")
     parser.add_argument("--no-spells", action="store_true")
     parser.add_argument("--no-projectiles", action="store_true")
+    parser.add_argument("--no-enemies", action="store_true")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--in-place", action="store_true", help="Write into the game folder")
     parser.add_argument("--game-dir")
@@ -50,6 +52,8 @@ def main() -> None:
         preset.spells.enabled = False
     if args.no_projectiles:
         preset.projectiles.enabled = False
+    if args.no_enemies:
+        preset.enemies.enabled = False
     if args.seed is not None:
         preset.seed = args.seed
 

@@ -439,7 +439,7 @@ class WeaponsTab(QtWidgets.QWidget):
             right_layout.addWidget(box)
         chances = QtWidgets.QFormLayout()
         self.moveset_chance, self.effect_chance, self.element_chance = (self._percent() for _ in range(3))
-        chances.addRow("Chance of another moveset of the same type", self.moveset_chance)
+        chances.addRow("Chance of another melee weapon's moveset (and its stats)", self.moveset_chance)
         chances.addRow("Chance of each added effect (on hit, while held)", self.effect_chance)
         chances.addRow("Chance of part of the damage becoming elemental", self.element_chance)
         right_layout.addLayout(chances)
@@ -525,7 +525,7 @@ class ArmorTab(QtWidgets.QWidget):
         options.addWidget(tiers)
         right = QtWidgets.QGroupBox("Options")
         right_layout = QtWidgets.QVBoxLayout(right)
-        self.set_tiers = QtWidgets.QCheckBox("Pieces of a set share their rarity")
+        self.set_tiers = QtWidgets.QCheckBox("Pieces of a set share their rarity (stats are generated per piece)")
         self.isolate_npcs = QtWidgets.QCheckBox("NPCs and invaders keep vanilla armor")
         self.write_descriptions = QtWidgets.QCheckBox("Write rarity and effects into the descriptions")
         for box in (self.set_tiers, self.isolate_npcs, self.write_descriptions):

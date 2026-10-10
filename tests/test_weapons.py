@@ -6,7 +6,7 @@ import pytest
 
 from ds1rand.features.weapons import (
     CLASS_SLOTS, CLASSES, DAMAGE, MAGIC_SCALING, MOVESET, NEGLIGIBLE, ON_HIT, PHYSICAL_SCALING, WHILE_HELD,
-    WeaponConfig, WeaponTier, is_pinned, offense, randomize_weapons,
+    MOVESET_REACH, WeaponConfig, WeaponTier, _WeaponBuilder, is_pinned, offense, randomize_weapons,
 )
 from ds1rand.session import Session
 
@@ -90,20 +90,39 @@ def test_effects_are_new_rows_and_vanilla_effects_stay(session, results):
     assert any(t.startswith("While held:") for t in texts) and any("+" in t or "HP per hit" in t for t in texts)
 
 
-def test_movesets_follow_family_and_type(session, results):
+def test_movesets_follow_family_and_come_from_melee_weapons(session, results):
     weapons = session.base.params["EquipParamWeapon"]
     by_family = {}
     for r in results:
         family = r.weapon_id - r.weapon_id % 1000
         by_family.setdefault(family, set()).add(r.moveset_from)
         if r.moveset_from:
-            mine, theirs = weapons.row_values(r.weapon_id), weapons.row_values(r.moveset_from)
-            assert (mine["weaponCategory"], mine["wepmotionCategory"]) == \
-                (theirs["weaponCategory"], theirs["wepmotionCategory"])
+            donor = weapons.row_values(r.moveset_from)
+            assert donor["wepmotionCategory"] in MOVESET_REACH
+            assert weapons.row_values(r.weapon_id)["wepmotionCategory"] in MOVESET_REACH
             new = session.store.values("EquipParamWeapon", r.weapon_id)
-            assert all(new[f] == theirs[f] for f in MOVESET)
+            assert all(new[f] == donor[f] for f in MOVESET)
     assert all(len(v) == 1 for v in by_family.values())
-    assert sum(1 for v in by_family.values() if None not in v) > 20
+    names = session.base.text[11][1]
+    eligible = {f: v for f, v in by_family.items()
+                if f in weapons.rows and names.get(f) and weapons.row_values(f)["wepmotionCategory"] in MOVESET_REACH}
+    traded = sum(1 for v in eligible.values() if None not in v)
+    assert 0.35 < traded / len(eligible) < 0.65  # default chance 50%
+
+
+def test_adopted_moveset_stats_are_rescaled_by_reach(session):
+    builder = _WeaponBuilder(session, WeaponConfig(), random.Random(0))
+    weapons = session.base.params["EquipParamWeapon"]
+    dagger, zweihander = 100000, 350000
+    assert weapons.row_values(dagger)["wepmotionCategory"] == 20
+    assert weapons.row_values(zweihander)["wepmotionCategory"] == 26
+    base = builder.baseline(dagger, zweihander)
+    donor = weapons.row_values(zweihander)
+    reach = (MOVESET_REACH[26] / MOVESET_REACH[20]) ** 0.5
+    assert base["attackBasePhysics"] == round(donor["attackBasePhysics"] * reach)
+    assert base["properStrength"] == donor["properStrength"] and base["weight"] == donor["weight"]
+    back = builder.baseline(zweihander, dagger)
+    assert back["attackBasePhysics"] == round(weapons.row_values(dagger)["attackBasePhysics"] / reach)
 
 
 def test_descriptions(session, results):

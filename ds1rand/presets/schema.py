@@ -86,7 +86,7 @@ class WeaponsSettings:
     tier_weights: tuple[float, float, float, float] = WEAPON_PRESETS["Standard"]
     weapons: bool = True
     shields: bool = True
-    moveset_chance: float = 0.25
+    moveset_chance: float = 0.5
     effect_chance: float = 0.25
     element_chance: float = 0.15
     isolate_npcs: bool = True

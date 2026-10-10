@@ -130,6 +130,7 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - Starting gear is capped to class stats, and NPCs keep vanilla copies.
    - Preset section, UI Weapons tab, `--no-weapons`.
    - Amendment: split damage counts for less in the value (a 50/50 split of 300 is worth about 200 of one type), and Rare / Legendary weapons get x1.05 / x1.1 base damage.
+   - v2: moveset trades across all melee types (default 50%, per family). A weapon taking another moveset starts from the stats of a weapon using it (same infusion path where it exists), with base damage x sqrt(reach of the moveset's animation set / reach of its own) (a dagger moving like an ultra greatsword hits about 1.7x harder, the reverse about 0.6x). Then its tier applies as usual.
    - The original scope follows.
 5. **Weapons** (tab) — rarity tiers with a cost model, like rings and spells:
    - Rarer weapons may get better flat damage, scaling, friendlier stat requirements, guard values, weight and triggered SpEffects.
@@ -143,7 +144,7 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - Constraint: every starting class can use its starting weapons and shield with its starting stats.
    - See AUDIT 33-38.
 6. **Armor** (done, pending in-game check): `ds1rand/features/armor.py`.
-   - Rarity per set (or per piece). The value combines defense, status resistance, poise and weight. Commons come out around 0.85x vanilla, Legendaries around 1.3x.
+   - Rarity per set (or per piece). v2: pieces are generated from scratch, not scaled. Each stat is drawn as a percentile of its slot's vanilla values (spiky draws favour extremes, e.g. a light hat with huge poise and no slash defense). The rating (weighted mean percentile + effect) is placed by tier within the slot's vanilla rating distribution, so overall ratings match vanilla's.
    - A ring-style passive goes into a free slot (vanilla effects are kept). Rarity and effect head the long description.
    - NPCs keep vanilla copies. Preset section, UI Armor tab, `--no-armor`.
    - The original scope follows.

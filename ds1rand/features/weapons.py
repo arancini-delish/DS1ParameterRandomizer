@@ -23,8 +23,14 @@ hit (not shields); while held, a ring-style passive (`features.passives`). They 
 the Chaos Blade's self-damage). The effects, the rarity and a moveset change are written into the weapon's
 description.
 
-Movesets (`moveset_chance`, per weapon family = a base weapon and its infusion rows): a weapon may take the moveset of
-another weapon of its type and animation set (attacks, motion values and stamina costs come with the moveset).
+Movesets (`moveset_chance`, per weapon family = a base weapon and its infusion rows): a melee weapon may take the
+moveset of any other melee weapon (`MOVESET_REACH` lists the animation sets; bows, crossbows, shields, catalysts and
+ammo keep theirs). Attacks, motion values and stamina costs come with the moveset. The weapon then starts from the
+stats of the weapon whose moveset it took (the same infusion path where that weapon has one) instead of its own, with
+base damage rescaled by the reach difference: hitboxes follow the weapon's own model, so a dagger swinging like an
+ultra greatsword reaches far less and hits harder (x sqrt(reach of the moveset / reach of its own animation set),
+about x1.7), and an ultra greatsword with a dagger moveset hits softer (about x0.6). The tier then works on those
+stats as usual.
 
 Pinned: fists, catalysts / talismans / pyromancy flames, ammo, lanterns, the Dark Hand. Starting classes can always use their starting
 weapons and shields (requirements are capped at the class's stats). With `isolate_npcs`, NPCs and invaders keep
@@ -78,7 +84,30 @@ GUARD_CUTS = ("physGuardCutRate", "magGuardCutRate", "fireGuardCutRate", "thunGu
 STATUS_GUARD = ("poisonGuardResist", "diseaseGuardResist", "bloodGuardResist", "curseGuardResist")
 ON_HIT = ("spEffectBehaviorId0", "spEffectBehaviorId1", "spEffectBehaviorId2")
 WHILE_HELD = ("residentSpEffectId", "residentSpEffectId1", "residentSpEffectId2")
-MOVESET = ("wepmotionOneHandId", "wepmotionBothHandId", "spAtkcategory", "behaviorVariationId")
+MOVESET = ("wepmotionCategory", "guardmotionCategory", "wepmotionOneHandId", "wepmotionBothHandId", "spAtkcategory",
+           "behaviorVariationId")
+# Stats a weapon takes over from the weapon whose moveset it adopts (then rescaled and randomized by its tier).
+ADOPTED = (DAMAGE + SCALING + tuple(REQUIREMENTS.values()) + GUARD_CUTS + STATUS_GUARD
+           + ("weight", "staminaGuardDef", "guardBaseRepel", "attackBaseStamina", "saWeaponDamage", "correctType"))
+# Melee animation sets (`wepmotionCategory`) and the typical reach of their weapons' models (metres, rough).
+MOVESET_REACH = {
+    20: 0.6,  # daggers
+    23: 1.0,  # straight swords
+    25: 1.4,  # greatswords
+    26: 1.8,  # ultra greatswords
+    27: 1.1,  # thrusting swords
+    28: 0.9,  # curved swords
+    29: 1.1,  # katanas
+    30: 0.9,  # axes
+    32: 1.5,  # greataxes
+    33: 0.8,  # hammers
+    35: 1.4,  # great hammers
+    36: 1.5,  # spears
+    38: 1.8,  # halberds
+    42: 0.4,  # fists
+    43: 2.2,  # whips
+}
+REACH_EXPONENT = 0.5
 
 NEGLIGIBLE = 0.1  # damage share below which a damage type gets no scaling
 REFERENCE_SCALING = 0.5  # stat curve value at reference stats (roughly 30 in a stat)
@@ -111,7 +140,7 @@ class WeaponConfig:
     tier_weights: tuple[float, float, float, float] = PRESETS["Standard"]
     weapons: bool = True
     shields: bool = True
-    moveset_chance: float = 0.25
+    moveset_chance: float = 0.5
     effect_chance: float = 0.25
     element_chance: float = 0.15
     isolate_npcs: bool = True
@@ -199,6 +228,7 @@ class _WeaponBuilder:
         limits = reference_limits(session.base)["SpEffectParam"]
         self.speffect_max = {f: limits.get(("EquipParamWeapon", f), 2**31 - 1) for f in ON_HIT + WHILE_HELD}
         self.class_caps = self._class_caps()
+        self.named = {w for w, name in session.base.text.get(11, ("", {}))[1].items() if name}
         self.movesets = self._movesets()
 
     def _class_caps(self) -> dict[int, dict[str, int]]:
@@ -219,25 +249,44 @@ class _WeaponBuilder:
                         cap[requirement] = min(cap[requirement], row[stat])
         return caps
 
-    def _movesets(self) -> dict[tuple[int, int], list[int]]:
-        """(weapon category, animation set) -> named base weapons with a distinct moveset (unnamed rows are unused)."""
+    def _movesets(self) -> list[int]:
+        """Named melee base weapons, one per distinct moveset (unnamed rows are unused)."""
         names = self.session.base.text.get(11, ("", {}))[1]
-        groups: dict[tuple[int, int], dict[tuple, int]] = defaultdict(dict)
+        movesets: dict[tuple, int] = {}
         for weapon_id in sorted(self.weapons.rows):
             values = self.weapons.row_values(weapon_id)
-            if weapon_id % 1000 or is_pinned(weapon_id, values, self.config.pinned) or not names.get(weapon_id):
+            if (weapon_id % 1000 or is_pinned(weapon_id, values, self.config.pinned) or not names.get(weapon_id)
+                    or values["wepmotionCategory"] not in MOVESET_REACH):
                 continue
-            key = (values["weaponCategory"], values["wepmotionCategory"])
-            groups[key].setdefault(tuple(values[f] for f in MOVESET), weapon_id)
-        return {key: sorted(sets.values()) for key, sets in groups.items() if len(sets) > 1}
+            movesets.setdefault(tuple(values[f] for f in MOVESET), weapon_id)
+        return sorted(movesets.values())
 
     def moveset_for(self, family: int) -> int | None:
         values = self.weapons.row_values(family)
-        options = [w for w in self.movesets.get((values["weaponCategory"], values["wepmotionCategory"]), [])
-                   if tuple(self.weapons.row_values(w)[f] for f in MOVESET) != tuple(values[f] for f in MOVESET)]
-        if options and self.rng.random() < self.config.moveset_chance:
-            return self.rng.choice(options)
-        return None
+        if (values["wepmotionCategory"] not in MOVESET_REACH or family not in self.named
+                or self.rng.random() >= self.config.moveset_chance):
+            return None
+        own = tuple(values[f] for f in MOVESET)
+        options = [w for w in self.movesets if tuple(self.weapons.row_values(w)[f] for f in MOVESET) != own]
+        return self.rng.choice(options) if options else None
+
+    def baseline(self, weapon_id: int, moveset_from: int | None) -> dict:
+        """What the tier works on: the weapon itself, or with a new moveset the stats of the weapon it came from
+        (same infusion path where it has one), base damage rescaled by reach."""
+        old = self.weapons.row_values(weapon_id)
+        if moveset_from is None:
+            return old
+        donor_row = moveset_from + weapon_id % 1000
+        if donor_row not in self.weapons.rows or is_pinned(donor_row, self.weapons.row_values(donor_row)):
+            donor_row = moveset_from
+        donor, source = self.weapons.row_values(donor_row), self.weapons.row_values(moveset_from)
+        base = dict(old)
+        base.update({f: donor[f] for f in ADOPTED})
+        base.update({f: source[f] for f in MOVESET})
+        reach = (MOVESET_REACH[source["wepmotionCategory"]] / MOVESET_REACH[old["wepmotionCategory"]]) ** REACH_EXPONENT
+        for name in DAMAGE:
+            base[name] = round(base[name] * reach)
+        return base
 
     def candidate(self, old: dict, shield: bool) -> dict:
         rng = self.rng
@@ -331,7 +380,8 @@ class _WeaponBuilder:
 
     def build(self, weapon_id: int, moveset_from: int | None) -> WeaponResult:
         rng = self.rng
-        old = self.weapons.row_values(weapon_id)
+        vanilla = self.weapons.row_values(weapon_id)
+        old = self.baseline(weapon_id, moveset_from)
         shield = old["weaponCategory"] == SHIELDS
         tier = WeaponTier(rng.choices(range(len(WeaponTier)), weights=self.config.tier_weights)[0])
         chosen, effect_value = self.effects(tier, shield)
@@ -347,15 +397,12 @@ class _WeaponBuilder:
             if best_score is None or score < best_score:
                 best, best_score = new, score
         result = WeaponResult(weapon_id, tier, shield, capped_for_class=weapon_id in self.class_caps)
-        if moveset_from is not None:
-            source = self.weapons.row_values(moveset_from)
-            best.update({f: source[f] for f in MOVESET})
-            result.moveset_from = moveset_from
+        result.moveset_from = moveset_from
         for name in DAMAGE:
             best[name] = round(best[name] * TIER_DAMAGE.get(tier, 1.0))
         result.effects = self.apply_effects(weapon_id, best, chosen)
         result.value = math.exp(value(best, old, shield, effect_value))
-        result.changes = {f: best[f] for f in best if best[f] != old[f]}
+        result.changes = {f: best[f] for f in best if best[f] != vanilla[f]}
         self.session.store.set("EquipParamWeapon", weapon_id, result.changes)
         return result
 

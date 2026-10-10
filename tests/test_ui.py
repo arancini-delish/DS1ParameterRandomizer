@@ -62,10 +62,10 @@ def test_projectiles_tab(window):
     assert tab.distributions["player"].values() == BUILTIN["Hard"].projectiles.player_weights
     assert tab.distributions["enemy"].values() == BUILTIN["Hard"].projectiles.enemy_weights
     tab.owner_boxes["environment"].setChecked(False)
-    tab.cross_enemy.setChecked(True)
+    tab.cross_enemy.setChecked(False)
     assert window.preset_combo.currentText() == CUSTOM
     settings = window.current_preset().projectiles
-    assert settings.environment is False and settings.cross_enemy is True
+    assert settings.environment is False and settings.cross_enemy is False
 
 
 def test_enemies_tab(window):

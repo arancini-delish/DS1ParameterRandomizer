@@ -242,10 +242,12 @@ class ProjectilesTab(QtWidgets.QWidget):
         chances.addRow("Chance of an added status effect", self.status_chance)
         options.addLayout(chances)
         self.cross_enemy = QtWidgets.QCheckBox(
-            "Enemies may take any enemy's projectiles (best with the enemy randomizer's effects)")
-        self.spell_effects = QtWidgets.QCheckBox("Allow spell visuals and spell chained effects")
+            "Enemies and traps may take any projectile whose effects are loaded where they appear "
+            "(off: their own model's)")
+        self.enemy_spells = QtWidgets.QCheckBox("Enemies and traps may also take spells")
+        self.spell_effects = QtWidgets.QCheckBox("Player projectiles may use spell visuals and spell chained effects")
         self.write_summaries = QtWidgets.QCheckBox("Write tier and carry limit into throwable summaries")
-        for box in (self.cross_enemy, self.spell_effects, self.write_summaries):
+        for box in (self.cross_enemy, self.enemy_spells, self.spell_effects, self.write_summaries):
             box.toggled.connect(self.changed)
             options.addWidget(box)
         layout.addWidget(self.options)
@@ -285,10 +287,11 @@ class ProjectilesTab(QtWidgets.QWidget):
             cross_enemy=self.cross_enemy.isChecked(),
             spell_effects=self.spell_effects.isChecked(),
             write_summaries=self.write_summaries.isChecked(),
+            enemy_spells=self.enemy_spells.isChecked(),
         )
 
     def apply(self, settings: ProjectilesSettings) -> None:
-        widgets = [self.enabled, self.cross_enemy, self.spell_effects, self.write_summaries, self.visual_chance,
+        widgets = [self.enabled, self.cross_enemy, self.enemy_spells, self.spell_effects, self.write_summaries, self.visual_chance,
                    self.motion_chance, self.chain_chance, self.status_chance, *self.owner_boxes.values(),
                    *self.distributions.values()]
         for widget in widgets:
@@ -298,6 +301,7 @@ class ProjectilesTab(QtWidgets.QWidget):
             self.owner_boxes[owner].setChecked(getattr(settings, owner))
             self.distributions[owner].set_values(getattr(settings, f"{owner}_weights"))
         self.cross_enemy.setChecked(settings.cross_enemy)
+        self.enemy_spells.setChecked(settings.enemy_spells)
         self.spell_effects.setChecked(settings.spell_effects)
         self.write_summaries.setChecked(settings.write_summaries)
         self.visual_chance.setValue(round(settings.visual_chance * 100))

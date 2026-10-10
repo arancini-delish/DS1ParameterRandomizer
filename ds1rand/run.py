@@ -81,7 +81,7 @@ def run(
         config = ProjectileConfig(**{f: getattr(settings, f) for f in (
             "player_weights", "enemy_weights", "environment_weights", "player", "enemy", "environment",
             "visual_chance", "motion_chance", "chain_chance", "status_chance", "cross_enemy", "spell_effects",
-            "write_summaries")})
+            "write_summaries", "enemy_spells")})
         result.projectiles = randomize_projectiles(session, config, random.Random(f"{seed}-projectiles"))
         kinds = Counter(r.slot.owner for r in result.projectiles)
         log(f"Projectiles: {len(result.projectiles)} randomized ({kinds['player']} player, {kinds['enemy']} enemy, "

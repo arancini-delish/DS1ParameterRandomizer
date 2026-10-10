@@ -57,9 +57,10 @@ class ProjectilesSettings:
     motion_chance: float = 0.4
     chain_chance: float = 0.25
     status_chance: float = 0.15
-    cross_enemy: bool = False
+    cross_enemy: bool = True
     spell_effects: bool = False
     write_summaries: bool = True
+    enemy_spells: bool = True
 
 
 @dataclass

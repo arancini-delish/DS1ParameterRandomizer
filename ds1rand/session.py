@@ -85,6 +85,13 @@ class Session:
 
         return compute_usage(self.graph, self.base, all_nodes=True)
 
+    @cached_property
+    def effects(self):
+        """Which particle effects the installed sfx bundles load where (see `catalogue.ffx`)."""
+        from ds1rand.catalogue.ffx import EffectResidency
+
+        return EffectResidency.from_sfx_dir(self.install.root / "sfx")
+
     def footprint(self, feature: str, params: set[str] | None = None) -> set:
         """Param rows `feature` uses (optionally only in `params`)."""
         return {n for n, f in self.usage.items()

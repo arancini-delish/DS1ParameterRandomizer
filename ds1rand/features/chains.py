@@ -8,7 +8,8 @@ reference it) and, by chance:
               parent keeps CHAINED_PARENT_POWER of its power, the child gets CHILD_POWER of it
     status    the last damaging bullet also applies a status effect from the status pool, at STATUS_DAMAGE_COST
     visuals   the root takes the particles of a bullet from the feature's visual pool; sometimes a later bullet too
-Attacks are copied into the feature's attack table and scaled by the power factor; SpEffects with numeric payloads
+Attacks are copied into the feature's attack table and scaled by the power factor (a donor fired by the other side
+reads its attacks from its own table: player and spell bullets use AtkParam_Pc, enemy and trap bullets AtkParam_Npc); SpEffects with numeric payloads
 (attack, defense, regen, max stats) are copied and scaled too. The outcome (final power, motion, chained source, child
 power, status, visual source, new rows per param) is written onto the result object passed in.
 
@@ -18,6 +19,7 @@ projectiles).
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ds1rand.catalogue.effects import GROUP_FIELDS, EffectClassifier
@@ -99,6 +101,7 @@ class ChainBuilder:
         self.rng = rng
         self.classifier = classifier or EffectClassifier(self.base, session.graph)
         self.status_pool = status_pool(session, self.classifier)
+        self._attack_source: Callable[[int], str] | None = None
 
     def build(
         self,
@@ -112,9 +115,12 @@ class ChainBuilder:
         chain_pool: list[tuple[int, int]],
         narrow_root: bool,
         limits: tuple[float, float] | None = None,
+        attack_source: Callable[[int], str] | None = None,
     ) -> int:
-        """Copy the chain at `donor_root` for `result`; returns the new root bullet."""
+        """Copy the chain at `donor_root` for `result`; returns the new root bullet. `attack_source` gives the attack
+        table a donor bullet's `atkId_Bullet` refers to (default: `attack_param`)."""
         rng = self.rng
+        self._attack_source = attack_source
         clamp = (lambda p: min(max(p, limits[0]), limits[1])) if limits else (lambda p: p)
         chain = bullet_chain(self.base, donor_root)
         root_class = classify_bullet(self.base.params["Bullet"].row_values(donor_root))
@@ -195,14 +201,15 @@ class ChainBuilder:
 
         status_added = not (add_status and result.status)
         damaging = [b for b in chain if self.base.params["Bullet"].row_values(b)["atkId_Bullet"] > 0]
-        attacks = self.base.params[attack_param].rows
         for bullet in chain:
             values = self.base.params["Bullet"].row_values(bullet)
             updates = {}
             if values["HitBulletID"] in new_ids:
                 updates["HitBulletID"] = new_ids[values["HitBulletID"]]
-            if values["atkId_Bullet"] > 0 and values["atkId_Bullet"] in attacks:
-                updates["atkId_Bullet"] = self.copy_attack(attack_param, values["atkId_Bullet"], power, result)
+            source = self._attack_source(bullet) if self._attack_source else attack_param
+            if values["atkId_Bullet"] > 0 and values["atkId_Bullet"] in self.base.params[source].rows:
+                updates["atkId_Bullet"] = self.copy_attack(attack_param, values["atkId_Bullet"], power, result,
+                                                           source_param=source)
             for name in ["spEffectIDForShooter"] + [f"spEffectId{i}" for i in range(5)]:
                 if values[name] > 0 and self.scalable(values[name]):
                     updates[name] = self.copy_speffect(values[name], power, result)
@@ -217,12 +224,18 @@ class ChainBuilder:
             result.status = None
         return new_ids
 
-    def copy_attack(self, attack_param: str, attack: int, power: float, result) -> int:
-        """Copy an attack, scaling its flat damage, or, for attacks without flat damage that scale the wielded
-        weapon (arrows, bolts), its correction percentages."""
-        values = self.base.params[attack_param].row_values(attack)
+    def copy_attack(self, attack_param: str, attack: int, power: float, result, source_param: str | None = None) -> int:
+        """Copy an attack (from `source_param`, default the same table) into `attack_param`, scaling its flat damage,
+        or, for attacks without flat damage that scale the wielded weapon (arrows, bolts), its correction
+        percentages. AtkParam_Pc and AtkParam_Npc share one row layout."""
+        source_param = source_param or attack_param
+        values = self.base.params[source_param].row_values(attack)
         new_id = self.ids.allocate(attack_param)
-        self.store.add(attack_param, new_id, copy_from=attack)
+        if source_param == attack_param:
+            self.store.add(attack_param, new_id, copy_from=attack)
+        else:
+            self.store.add(attack_param, new_id, copy_from=min(self.base.params[attack_param].rows))
+            self.store.set(attack_param, new_id, values)
         fields = DAMAGE_FIELDS if any(values[f] for f in DAMAGE_FIELDS) else CORRECTION_FIELDS
         self.store.set(attack_param, new_id, {f: int(round(values[f] * power)) for f in fields if values[f]})
         result.rows[attack_param] += 1

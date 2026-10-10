@@ -5,8 +5,9 @@ import pytest
 
 from ds1rand.features.chains import CORRECTION_FIELDS, DAMAGE_FIELDS, chain_damage
 from ds1rand.features.projectiles import (
-    CARRY_LIMITS, THROWABLES, TIER_POWER, ProjectileConfig, find_slots, randomize_projectiles,
+    CARRY_LIMITS, THROWABLES, TIER_POWER, ProjectileConfig, _ProjectileBuilder, find_slots, randomize_projectiles,
 )
+from ds1rand.catalogue.ffx import bullet_effects
 from ds1rand.session import Session
 
 
@@ -30,7 +31,7 @@ def test_slots_cover_every_owner(session):
 
 
 def test_donors_keep_their_kind(session):
-    results = run(session)
+    results = run(session, cross_enemy=False)
     slots = {(s.kind, s.root) for s in find_slots(session)}
     by_root = {}
     for kind, root in slots:
@@ -69,12 +70,13 @@ def test_throwables_carry_limit_and_summary(session):
 def test_enemy_damage_follows_the_replaced_projectile(session):
     # No chains/status so the root attack carries the whole scaling.
     results = run(session, chain_chance=0, status_chance=0, motion_chance=0)
+    tables = _ProjectileBuilder(session, ProjectileConfig(), random.Random(0)).attack_table
     checked = 0
     for r in results:
         if r.slot.owner == "player":
             continue
         own = chain_damage(session, r.slot.root, r.slot.attack_param)
-        donor = chain_damage(session, r.donor, r.slot.attack_param)
+        donor = chain_damage(session, r.donor, tables[r.donor])
         if not own or not donor:
             continue
         assert r.power == pytest.approx(TIER_POWER[r.tier] * own / donor, rel=1e-6)
@@ -115,3 +117,47 @@ def test_deterministic(redirected_install):
         return [(r.slot.row, r.tier, r.donor, r.root, r.power, r.motion, r.chained_from, r.status) for r in results]
     assert snapshot(3) == snapshot(3)
     assert snapshot(3) != snapshot(4)
+
+
+def _new_chain(session, root):
+    chain, bullet = [], root
+    while bullet > 0 and bullet not in chain:
+        chain.append(bullet)
+        bullet = session.store.values("Bullet", bullet)["HitBulletID"]
+    return chain
+
+
+def test_enemy_projectiles_only_show_loaded_effects(session):
+    results = run(session, visual_chance=1.0, chain_chance=0.5)
+    builder = _ProjectileBuilder(session, ProjectileConfig(), random.Random(0))
+    crossed = 0
+    for r in results:
+        if r.slot.owner == "player":
+            continue
+        loaded = builder.loaded(r.slot)
+        own = builder.effects(r.slot.root)
+        for bullet in _new_chain(session, r.root):
+            effects = bullet_effects(session.store.values("Bullet", bullet))
+            assert effects <= loaded | own, (r.slot, bullet)
+        crossed += r.donor not in {s.root for s in builder.by_group[r.slot.group]}
+    assert crossed > 100
+
+
+def test_cross_side_donors_copy_attacks_into_the_npc_table(session):
+    results = run(session, chain_chance=0)
+    builder = _ProjectileBuilder(session, ProjectileConfig(), random.Random(0))
+    bullets = session.base.params["Bullet"]
+    checked = 0
+    for r in results:
+        if r.slot.owner == "player" or builder.attack_table.get(r.donor) != "AtkParam_Pc":
+            continue
+        donor_attack = bullets.row_values(r.donor)["atkId_Bullet"]
+        if donor_attack <= 0 or donor_attack not in session.base.params["AtkParam_Pc"].rows:
+            continue
+        new_attack = session.store.values("Bullet", r.root)["atkId_Bullet"]
+        assert session.store.is_new("AtkParam_Npc", new_attack)
+        old = session.base.params["AtkParam_Pc"].row_values(donor_attack)
+        new = session.store.values("AtkParam_Npc", new_attack)
+        assert new["atkMag"] == round(old["atkMag"] * r.power) and new["hit0_Radius"] == old["hit0_Radius"]
+        checked += 1
+    assert checked

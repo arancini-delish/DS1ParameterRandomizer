@@ -1,9 +1,12 @@
 """Body and face randomizer (Phase 6.7): NPC faces, character creation face templates, physiques and NPC bodies.
 
-Each part has a strength from 0 (vanilla) to 1. Every value moves `strength` of the way from its vanilla value to a
-random value within that field's vanilla extremes (the min-max over all vanilla rows), so full strength draws every
-value anew within sensible limits. Choice fields (hair style) switch to another vanilla choice with probability
-`strength`.
+Each part has a strength from 0 (vanilla) to `MAX_STRENGTH` (4). Up to 1, every value moves `strength` of the way
+from its vanilla value to a random value within that field's vanilla extremes (the min-max over all vanilla rows), so
+1 draws every value anew within sensible limits. Above 1 the fresh value's distance from the field's neutral point
+(the middle of its vanilla range; 0 for body scales) is multiplied by the strength: 3 is a fresh draw exaggerated 3x.
+Values are clipped to what the field can hold (`FACE_TYPE_LIMITS`, `BODY_TYPE_LIMITS`): body scales are documented as
+-100..100, so beyond 1 they mostly pile up at the s8 limits. Choice fields (hair style) switch to another vanilla
+choice with probability `strength` (always above 1).
 
     NPC faces           FaceGenParam rows NPC characters use (`CharaInitParam.npcPlayerFaceGenId`)
     player faces        the character creation face templates (CharaInitParam 2300-2319 -> FaceGenParam 1000-1009
@@ -26,7 +29,10 @@ TEMPLATES = range(2300, 2320)
 PHYSIQUES = (*range(2100, 2109), *range(2200, 2209))
 CHARACTER_CREATION = range(2100, 2400)  # physique, face template and preview rows
 BODY = ("bodyScaleHead", "bodyScaleBreast", "bodyScaleAbdomen", "bodyScaleArm", "bodyScaleLeg")
-BODY_LIMITS = (-100, 100)
+BODY_LIMITS = (-100, 100)  # vanilla / documented range
+BODY_TYPE_LIMITS = (-128, 127)  # s8
+FACE_TYPE_LIMITS = (0, 255)  # u8
+MAX_STRENGTH = 4.0
 CHOICE_FIELDS = frozenset({"hairStyle"})
 
 
@@ -46,9 +52,15 @@ class AppearanceResult:
     npc_bodies: list[int] = field(default_factory=list)
 
 
-def _blend(rng: random.Random, value, low, high, strength: float, is_int: bool):
+def _blend(rng: random.Random, value, low, high, strength: float, is_int: bool, centre: float,
+           type_limits: tuple[float, float]):
+    """`strength` <= 1: move that far from `value` towards a random value in [low, high]; above: a random value
+    whose distance from `centre` is multiplied by `strength`, clipped to `type_limits`."""
     target = rng.uniform(low, high)
-    new = value + strength * (target - value)
+    if strength <= 1:
+        new = value + strength * (target - value)
+    else:
+        new = min(max(centre + strength * (target - centre), type_limits[0]), type_limits[1])
     return int(round(new)) if is_int else new
 
 
@@ -78,7 +90,8 @@ def randomize_appearance(session: Session, config: AppearanceConfig, rng: random
                 if rng.random() < strength:
                     updates[name] = rng.choice(choices[name])
             elif low < high:
-                updates[name] = _blend(rng, values[name], low, high, strength, isinstance(values[name], int))
+                updates[name] = _blend(rng, values[name], low, high, strength, isinstance(values[name], int),
+                                       (low + high) / 2, FACE_TYPE_LIMITS)
         store.set("FaceGenParam", row_id, updates)
 
     # NPC faces: NPCs sharing a template's face get their own copy first.
@@ -104,7 +117,7 @@ def randomize_appearance(session: Session, config: AppearanceConfig, rng: random
     def body(row_id: int, strength: float) -> None:
         values = store.values("CharaInitParam", row_id)
         store.set("CharaInitParam", row_id,
-                  {f: _blend(rng, values[f], *BODY_LIMITS, strength, True) for f in BODY})
+                  {f: _blend(rng, values[f], *BODY_LIMITS, strength, True, 0, BODY_TYPE_LIMITS) for f in BODY})
 
     if config.physiques > 0:
         for row_id in PHYSIQUES:

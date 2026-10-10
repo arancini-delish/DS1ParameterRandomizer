@@ -23,6 +23,7 @@ from ds1rand.features.weapons import PRESETS as WEAPON_PRESETS
 from ds1rand.features.weapons import WeaponTier
 from ds1rand.features.armor import PRESETS as ARMOR_PRESETS
 from ds1rand.features.armor import ArmorTier
+from ds1rand.features.appearance import MAX_STRENGTH
 from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESETS
 from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.projectiles import ProjectileTier
@@ -599,13 +600,14 @@ class AppearanceTab(QtWidgets.QWidget):
         self.enabled = QtWidgets.QCheckBox("Randomize body and face data")
         self.enabled.toggled.connect(self._toggled)
         layout.addWidget(self.enabled)
-        self.options = QtWidgets.QGroupBox("Strength (0% vanilla, 100% every value drawn anew within vanilla extremes)")
+        self.options = QtWidgets.QGroupBox(
+            "Strength (0% vanilla, 100% every value drawn anew within vanilla extremes, above 100% exaggerated)")
         form = QtWidgets.QFormLayout(self.options)
         self.sliders, self.labels = {}, {}
         for key, label in self.PARTS:
             row = QtWidgets.QHBoxLayout()
             slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
-            slider.setRange(0, 100)
+            slider.setRange(0, round(MAX_STRENGTH * 100))
             value = QtWidgets.QLabel("0%")
             value.setMinimumWidth(40)
             slider.valueChanged.connect(lambda v, l=value: l.setText(f"{v}%"))

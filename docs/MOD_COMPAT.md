@@ -93,3 +93,16 @@ Checked 2026-10-11 against `SeamlessCoop/ds1sc.dll`.
 Joining needs identical game files on every PC. ds1rand's output is deterministic per seed, preset and base, but the base includes the other mods' output.
 
 `ds1rand.fingerprint` hashes what the game loads: params, item / menu text, events, maps, AI / talk scripts and sfx bundles. Validate shows the code, and so does `ds1rand-cli --fingerprint`, so players can compare installs.
+
+**Joining that fails with matching fingerprints** (2026-10-11: base game + ds1rand + Seamless Co-op). The guest sees itself joining, the host sees nothing, the worlds stay separate, and the guest gets "disconnected" when the host leaves.
+
+`tools/make_coop_bisect.py` writes the same run with feature groups off (`out/coop_bisect/`), to find which group interferes:
+- none
+- rings / spells / projectiles
+- weapons / armor
+- enemies / body and face
+- all
+
+Suspects to test:
+- A character created from exaggerated physique / face templates: body scales beyond the documented -100..100. Player data the game may reject when syncing a phantom.
+- Equipment the guest wears whose rows ds1rand changed.

@@ -153,7 +153,7 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - SpEffects come from any fitting SpEffect, with ring-style text in the description.
    - See AUDIT 39-40.
 7. **Body / face data** (done, pending in-game check): `ds1rand/features/appearance.py`.
-   - Four strengths (0 = vanilla, 1 = every value drawn anew within the field's vanilla extremes): NPC faces, character creation face templates, the nine physiques per sex, NPC body proportions. Hair style switches choice with probability = strength.
+   - Four strengths, 0-400% (0 = vanilla, 100% = every value drawn anew within the field's vanilla extremes, above 100% the fresh value's distance from the neutral point is multiplied, e.g. 300% = 3x; clipped to the field type: body scales s8, face values u8): NPC faces, character creation face templates, the nine physiques per sex, NPC body proportions. Hair style switches choice with probability = strength.
    - NPCs sharing a template's face get a copy. UI "Body & Face" tab with sliders, preset section, `--no-appearance`.
    - The original scope follows.
 7. **Body / face data** (tab):

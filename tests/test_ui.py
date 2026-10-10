@@ -101,6 +101,6 @@ def test_armor_tab(window):
 
 def test_appearance_tab(window):
     tab = window.appearance_tab
-    tab.sliders["physiques"].setValue(100)
+    tab.sliders["physiques"].setValue(300)
     assert window.preset_combo.currentText() == CUSTOM
-    assert window.current_preset().appearance.physiques == 1.0 and tab.labels["physiques"].text() == "100%"
+    assert window.current_preset().appearance.physiques == 3.0 and tab.labels["physiques"].text() == "300%"

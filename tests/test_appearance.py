@@ -4,7 +4,8 @@ import random
 import pytest
 
 from ds1rand.features.appearance import (
-    BODY, BODY_LIMITS, PHYSIQUES, TEMPLATES, AppearanceConfig, randomize_appearance,
+    BODY, BODY_LIMITS, BODY_TYPE_LIMITS, FACE_TYPE_LIMITS, PHYSIQUES, TEMPLATES, AppearanceConfig,
+    randomize_appearance,
 )
 from ds1rand.session import Session
 
@@ -46,7 +47,7 @@ def test_strength_controls_how_far_values_move(session, redirected_install):
         chara = s.base.params["CharaInitParam"]
         return sum(abs(s.store.values("CharaInitParam", r)[f] - chara.row_values(r)[f])
                    for r in result.physiques for f in BODY)
-    assert 0 < distance(0.2) < distance(1.0)
+    assert 0 < distance(0.2) < distance(1.0) < distance(3.0)
 
 
 def test_parts_are_independent(session):
@@ -66,3 +67,17 @@ def test_npcs_sharing_a_template_face_get_a_copy(session):
     assert copies  # vanilla: FaceGenParam 2000 is a template and an NPC's face
     for row_id, values in session.store.changes()["CharaInitParam"].items():
         assert values["npcPlayerFaceGenId"] in copies
+
+
+def test_exaggerated_strength_stays_within_field_types(session):
+    result = run(session, 4, 4, 4, 4)
+    fields = list(session.vanilla.params["FaceGenParam"].row_values(0))
+    outside_vanilla = 0
+    for row_id in result.npc_faces + result.player_faces:
+        values = session.store.values("FaceGenParam", row_id)
+        assert all(FACE_TYPE_LIMITS[0] <= values[f] <= FACE_TYPE_LIMITS[1] for f in fields)
+    for row_id in result.physiques + result.npc_bodies:
+        values = session.store.values("CharaInitParam", row_id)
+        assert all(BODY_TYPE_LIMITS[0] <= values[f] <= BODY_TYPE_LIMITS[1] for f in BODY)
+        outside_vanilla += sum(not BODY_LIMITS[0] <= values[f] <= BODY_LIMITS[1] for f in BODY)
+    assert outside_vanilla

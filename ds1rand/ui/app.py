@@ -1,8 +1,9 @@
 """The ds1rand window (Phase 7 prototype).
 
 Top: global preset (built-ins, Custom), import/export of preset files and share strings, game folder, seed, output.
-Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons, Armor, Body & Face) and Install (what the
-run would build on: other mods' changes, previous ds1rand output). Bottom: Validate / Randomize and the log.
+Tabs: one per feature (Rings, Spells, Projectiles, Enemy Behaviour, Weapons, Armor, Body & Face), Install (what the
+run would build on: other mods' changes, previous ds1rand output) and Audit (graph / catalogue browser of the last
+Validate or Randomize, `ui.audit`). Bottom: Validate / Randomize and the log; runs also write a spoiler log.
 Work runs in a background thread so the window stays responsive.
 """
 from __future__ import annotations
@@ -30,6 +31,7 @@ from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import BUILTIN, AppearanceSettings, ArmorSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
+from ds1rand.ui.audit import AuditTab
 from ds1rand.ui.widgets import DistributionEditor
 
 CUSTOM = "Custom"
@@ -686,6 +688,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.install_view = QtWidgets.QPlainTextEdit(readOnly=True)
         self.install_view.setPlaceholderText("Validate the install to see what a run would build on.")
         self.tabs.addTab(self.install_view, "Install")
+        self.audit_tab = AuditTab()
+        self.tabs.addTab(self.audit_tab, "Audit")
         layout.addWidget(self.tabs, stretch=3)
 
         buttons = QtWidgets.QHBoxLayout()
@@ -750,6 +754,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.to_out.setChecked(True)
         row.addWidget(self.to_out)
         row.addWidget(self.in_place)
+        self.spoiler = QtWidgets.QCheckBox("Write a spoiler log (ds1rand-spoiler.txt)")
+        self.spoiler.setChecked(self.settings.value("spoiler", "true") == "true")
+        self.spoiler.toggled.connect(lambda on: self.settings.setValue("spoiler", "true" if on else "false"))
+        row.addWidget(self.spoiler)
         row.addStretch()
         form.addRow("Output", row)
         return form
@@ -869,7 +877,8 @@ class MainWindow(QtWidgets.QMainWindow):
         preset = self.current_preset()
         self.settings.setValue("preset", preset.to_json())
         out_dir = None if self.in_place.isChecked() else DEFAULT_OUT
-        self._start(lambda log: run(preset, install, out_dir, log), self._show_run, "Randomizing")
+        spoiler = self.spoiler.isChecked()
+        self._start(lambda log: run(preset, install, out_dir, log, spoiler=spoiler), self._show_run, "Randomizing")
 
     def _start(self, job, on_done, label: str) -> None:
         self._log(f"{label}...")
@@ -901,6 +910,7 @@ class MainWindow(QtWidgets.QMainWindow):
         lines += ["", "Conflicts with the previous ds1rand run:"] + [f"  {c}" for c in result.conflicts or ["none"]]
         self.install_view.setPlainText("\n".join(lines))
         self.tabs.setCurrentWidget(self.install_view)
+        self.audit_tab.set_session(result.session)
         self._log("Validation done")
 
     def _show_run(self, result: RunResult) -> None:
@@ -911,6 +921,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weapons_tab.show_results(result)
         self.armor_tab.show_results(result)
         self.appearance_tab.show_results(result)
+        self.audit_tab.set_session(result.session)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
 

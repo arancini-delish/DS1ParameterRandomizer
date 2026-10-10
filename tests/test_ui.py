@@ -104,3 +104,16 @@ def test_appearance_tab(window):
     tab.sliders["physiques"].setValue(300)
     assert window.preset_combo.currentText() == CUSTOM
     assert window.current_preset().appearance.physiques == 3.0 and tab.labels["physiques"].text() == "300%"
+
+
+def test_audit_tab_browses_a_session(window, redirected_install):
+    from ds1rand.session import Session
+
+    tab = window.audit_tab
+    tab.set_session(Session.open(redirected_install))
+    assert tab.coverage.rowCount() > 10
+    tab.param.setCurrentText("Magic")
+    tab.filter.setText("Soul Arrow")
+    assert tab.rows.count() >= 1
+    tab.rows.setCurrentRow(0)
+    assert "Soul Arrow" in tab.details.toPlainText() and "Referenced by" in tab.details.toPlainText()

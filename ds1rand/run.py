@@ -17,6 +17,7 @@ from ds1rand.features.weapons import WeaponConfig, WeaponResult, randomize_weapo
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
 from ds1rand.session import Session
+from ds1rand.spoiler import write_spoiler
 
 DEFAULT_OUT = Path(__file__).resolve().parents[1] / "out" / "randomized"
 
@@ -42,6 +43,8 @@ class RunResult:
     appearance: AppearanceResult | None = None
     written: list[str] = field(default_factory=list)
     target: Path | None = None
+    spoiler: Path | None = None
+    session: Session | None = field(default=None, repr=False)  # for inspecting the run (UI Audit tab)
 
 
 def validate(install: GameInstall) -> RunResult:
@@ -55,8 +58,10 @@ def run(
     install: GameInstall,
     out_dir: Path | None = DEFAULT_OUT,
     log: Callable[[str], None] = print,
+    spoiler: bool = True,
 ) -> RunResult:
-    """Randomize with `preset` and write to `out_dir` (mirroring the game folder), or into the game folder if None."""
+    """Randomize with `preset` and write to `out_dir` (mirroring the game folder), or into the game folder if None.
+    With `spoiler`, a spoiler log (`ds1rand.spoiler`) is written there too."""
     seed = preset.seed if preset.seed is not None else random.randrange(2**31)
     log(f"Opening {install.root} ...")
     session = Session.open(install)
@@ -133,6 +138,10 @@ def run(
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
     log(f"Wrote {', '.join(result.written) or 'nothing'} to {result.target}")
+    if spoiler:
+        used = Preset.from_dict({**preset.to_dict(), "seed": seed})
+        result.spoiler = write_spoiler(used, result, result.target)
+        log(f"Spoiler log: {result.spoiler}")
     return result
 
 
@@ -140,6 +149,7 @@ def _result(session: Session, seed: int) -> RunResult:
     names = session.base.text.get(13, ("", {}))[1]
     spell_names = {**session.base.text.get(14, ("", {}))[1], **{k: v for k, v in session.base.text.get(118, ("", {}))[1].items() if v}}
     return RunResult(
+        session=session,
         seed=seed,
         gameparam_base=session.gameparam_base.state,
         text_base=session.text_base.state,

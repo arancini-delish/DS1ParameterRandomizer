@@ -14,7 +14,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PARAMDEFS_DIR = Path(__file__).resolve().parents[2] / "ds1paramdefs"
+from ds1rand.paths import PARAMDEFS_DIR
+
 META_DIR = PARAMDEFS_DIR / "Meta"
 
 _REF_RE = re.compile(r"^(\w+)(?:\((\w+)=(-?\d+)\))?$")

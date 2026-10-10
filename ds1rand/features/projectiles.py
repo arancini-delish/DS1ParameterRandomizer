@@ -214,7 +214,7 @@ class _ProjectileBuilder:
     def _spell_pairs(self) -> list[tuple[int, int]]:
         magic = self.session.base.params["Magic"]
         pairs = []
-        for node in self.session.footprint("player_spell", {"Magic"}):
+        for node in sorted(self.session.footprint("player_spell", {"Magic"})):
             values = magic.row_values(node.id)
             if values["refCategory"] == 1 and values["refId"] in self.bullets.rows:
                 pairs += [(values["refId"], b) for b in bullet_chain(self.session.base, values["refId"])]

@@ -18,8 +18,9 @@ from typing import Any
 
 from ds1rand.io.gameparam import GameParams
 from ds1rand.io.msg import ItemText
+from ds1rand.paths import DATA_DIR
 
-DEFAULT_BASELINE_DIR = Path(__file__).resolve().parents[2] / "data" / "baseline"
+DEFAULT_BASELINE_DIR = DATA_DIR / "baseline"
 FORMAT_VERSION = 1
 
 

@@ -7,7 +7,9 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFS_DIR = Path(__file__).resolve().parents[2] / "ds1paramdefs" / "Defs"
+from ds1rand.paths import PARAMDEFS_DIR
+
+DEFS_DIR = PARAMDEFS_DIR / "Defs"
 
 # e.g. "s32 atkId_Bullet = -1", "u8 hasTarget:1", "dummy8 pad[3]", "f32 life = -1"
 _DEF_RE = re.compile(r"^(\w+)\s+(\w+)\s*(?:\[(\d+)\])?\s*(?::\s*(\d+))?\s*(?:=\s*(.+))?$")

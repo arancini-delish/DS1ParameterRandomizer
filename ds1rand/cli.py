@@ -23,6 +23,7 @@ from pathlib import Path
 
 from ds1rand import __version__
 from ds1rand.features.rings import PRESETS as RING_PRESETS
+from ds1rand.fingerprint import fingerprint
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import BUILTIN, Preset
 from ds1rand.run import DEFAULT_OUT, run
@@ -44,6 +45,8 @@ def main() -> None:
     parser.add_argument("--no-armor", action="store_true")
     parser.add_argument("--no-appearance", action="store_true")
     parser.add_argument("--no-spoiler", action="store_true", help="Do not write ds1rand-spoiler.txt")
+    parser.add_argument("--fingerprint", action="store_true",
+                        help="Print the game files fingerprint of the install (compare with co-op partners) and exit")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--in-place", action="store_true", help="Write into the game folder")
     parser.add_argument("--game-dir")
@@ -76,6 +79,9 @@ def main() -> None:
         preset.seed = args.seed
 
     install = GameInstall(Path(args.game_dir)) if args.game_dir else GameInstall.default()
+    if args.fingerprint:
+        print(fingerprint(install.root).text())
+        return
     result = run(preset, install, out_dir=None if args.in_place else DEFAULT_OUT, spoiler=not args.no_spoiler)
     for ring in result.rings:
         print(f"  {ring.ring_id} {result.ring_names.get(ring.ring_id, '?'):32} {ring.tier.name:9} "

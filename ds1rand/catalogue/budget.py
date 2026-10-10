@@ -40,6 +40,9 @@ BUDGET_PARAMS = ("Magic", "Bullet", "AtkParam_Pc", "AtkParam_Npc", "SpEffectPara
 TYPE_MAX = {"s8": 127, "u8": 255, "s16": 32767, "u16": 65535, "s32": 2**31 - 1, "u32": 2**31 - 1}
 # (first, last) blocks of new row IDs, narrow block first. Both are empty in vanilla for every param.
 NEW_ID_BLOCKS = ((30000, 32767), (9_000_000, 9_999_999))
+# IDs other mods create at run time (never in the files, so never "taken" in the base): kept free for them.
+# Seamless Co-op (ds1sc.dll) adds its items as EquipParamGoods 389000-389008 in memory.
+RESERVED_IDS: dict[str, range] = {"EquipParamGoods": range(389000, 390000)}
 
 
 @dataclass
@@ -190,7 +193,7 @@ class IdAllocator:
     block that fits `max_id` is used first, keeping the small narrow block for rows that must fit 16-bit fields."""
 
     def __init__(self, baseline: Baseline):
-        self.taken = {name: set(pb.rows) for name, pb in baseline.params.items()}
+        self.taken = {name: set(pb.rows) | set(RESERVED_IDS.get(name, ())) for name, pb in baseline.params.items()}
 
     def allocate(self, param: str, max_id: int = 2**31 - 1, step: int = 1) -> int:
         """Lowest free ID; `step` > 1 returns a multiple of `step` (weapon/armor IDs are multiples of 100)."""

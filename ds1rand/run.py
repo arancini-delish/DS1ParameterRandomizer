@@ -14,6 +14,7 @@ from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
 from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
 from ds1rand.features.spells import SpellConfig, SpellResult, randomize_spells
 from ds1rand.features.weapons import WeaponConfig, WeaponResult, randomize_weapons
+from ds1rand.fingerprint import Fingerprint, fingerprint
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import Preset
 from ds1rand.session import Session
@@ -44,13 +45,17 @@ class RunResult:
     written: list[str] = field(default_factory=list)
     target: Path | None = None
     spoiler: Path | None = None
+    fingerprint: Fingerprint | None = None  # of the installed game files (validate only)
     session: Session | None = field(default=None, repr=False)  # for inspecting the run (UI Audit tab)
 
 
 def validate(install: GameInstall) -> RunResult:
-    """Open a session without changing anything: which base would be used, what other mods changed."""
+    """Open a session without changing anything: which base would be used, what other mods changed, and the
+    fingerprint of the installed game files (to compare with co-op partners)."""
     session = Session.open(install)
-    return _result(session, seed=0)
+    result = _result(session, seed=0)
+    result.fingerprint = fingerprint(install.root)
+    return result
 
 
 def run(

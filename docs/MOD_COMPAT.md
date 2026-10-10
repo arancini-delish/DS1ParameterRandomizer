@@ -75,3 +75,21 @@ Implementation:
 - On the install with all three mods (2026-10-09): opens in ~6 s; protected SpEffect 7240/7280/7320/7360 plus vanilla
   duplicates; player-spell allocation unchanged from vanilla (67 Bullet, 30 AtkParam_Pc, 18 SpEffect copies); enemy
   behaviour sees 1445 enemy-used NpcParam rows (555 vanilla + 890 from the enemy randomizer).
+
+
+## Seamless Co-op (ds1sc)
+Checked 2026-10-11 against `SeamlessCoop/ds1sc.dll`.
+
+**What the mod changes**
+- It ships no game files: a DLL patches params in memory (`param_manager`, which loads `param:/GameParam/GameParam.parambnd`).
+- Its items (Blessed / Crystal / Chaos / Abyssal Eye Orb, Ominous Tome, Dried Fingers, Cursed Pendant, Crimson Blossom, Parchment of Deliverance) are EquipParamGoods 389000-389008, created at run time. Their names come from `SeamlessCoop/locale/*.json`.
+
+**How ds1rand avoids it**
+- ds1rand never adds goods rows. It reserves 389000-389999 anyway (`catalogue.budget.RESERVED_IDS`).
+- It only edits goods 290-297 (throwables).
+- A run changes neither the vanilla multiplayer goods (100-118) nor anything they reference (`tests/test_coop.py`).
+
+**Joining problems**
+Joining needs identical game files on every PC. ds1rand's output is deterministic per seed, preset and base, but the base includes the other mods' output.
+
+`ds1rand.fingerprint` hashes what the game loads: params, item / menu text, events, maps, AI / talk scripts and sfx bundles. Validate shows the code, and so does `ds1rand-cli --fingerprint`, so players can compare installs.

@@ -1,6 +1,6 @@
 """Presets: every setting of a run, versioned, as JSON files or a short share string.
 
-A preset holds one section per feature (rings, spells, projectiles; enemy behaviour when it is built) plus the
+A preset holds one section per feature (rings, spells, projectiles, enemies) plus the
 seed. Share strings are "DS1R" + version + "-" + base64url(zlib(JSON)), so pasting one reproduces a run exactly.
 Unknown keys are ignored and missing keys take defaults, so presets from older versions keep loading.
 """
@@ -12,6 +12,7 @@ import zlib
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
+from ds1rand.features.enemies import PRESETS as ENEMY_PRESETS
 from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESETS
 from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
@@ -62,12 +63,28 @@ class ProjectilesSettings:
 
 
 @dataclass
+class EnemiesSettings:
+    enabled: bool = True
+    tier_weights: tuple[float, float, float, float] = ENEMY_PRESETS["Standard"]
+    turn: bool = True
+    detection: bool = True
+    pursuit: bool = True
+    speed: bool = True
+    poise: bool = True
+    stamina: bool = True
+    regular: bool = True
+    bosses: bool = False
+    humans: bool = False
+
+
+@dataclass
 class Preset:
     name: str = "Standard"
     seed: int | None = None  # None: pick one at random when running
     rings: RingsSettings = field(default_factory=RingsSettings)
     spells: SpellsSettings = field(default_factory=SpellsSettings)
     projectiles: ProjectilesSettings = field(default_factory=ProjectilesSettings)
+    enemies: EnemiesSettings = field(default_factory=EnemiesSettings)
 
     def to_dict(self) -> dict:
         return {"version": VERSION, **asdict(self)}
@@ -78,7 +95,7 @@ class Preset:
             raise ValueError(f"Preset version {data['version']} is newer than this ds1rand (version {VERSION})")
         sections = {}
         for key, settings_cls in (("rings", RingsSettings), ("spells", SpellsSettings),
-                                  ("projectiles", ProjectilesSettings)):
+                                  ("projectiles", ProjectilesSettings), ("enemies", EnemiesSettings)):
             values = _known(settings_cls, data.get(key, {}))
             for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights"):
                 if name in values:
@@ -125,6 +142,7 @@ BUILTIN: dict[str, Preset] = {
                  spells=SpellsSettings(tier_weights=SPELL_PRESETS[name]),
                  projectiles=ProjectilesSettings(player_weights=PROJECTILE_PRESETS[name],
                                                  enemy_weights=ENEMY_PROJECTILE_PRESETS[name],
-                                                 environment_weights=ENEMY_PROJECTILE_PRESETS[name]))
+                                                 environment_weights=ENEMY_PROJECTILE_PRESETS[name]),
+                 enemies=EnemiesSettings(tier_weights=ENEMY_PRESETS[name]))
     for name in RING_PRESETS
 }

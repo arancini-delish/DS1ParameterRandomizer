@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize_enemies
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
 from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
 from ds1rand.features.spells import SpellConfig, SpellResult, randomize_spells
@@ -30,6 +31,7 @@ class RunResult:
     spell_names: dict[int, str] = field(default_factory=dict)
     projectiles: list[ProjectileResult] = field(default_factory=list)
     goods_names: dict[int, str] = field(default_factory=dict)
+    enemies: list[EnemyResult] = field(default_factory=list)
     written: list[str] = field(default_factory=list)
     target: Path | None = None
 
@@ -84,6 +86,17 @@ def run(
         kinds = Counter(r.slot.owner for r in result.projectiles)
         log(f"Projectiles: {len(result.projectiles)} randomized ({kinds['player']} player, {kinds['enemy']} enemy, "
             f"{kinds['environment']} traps)")
+
+    if preset.enemies.enabled:
+        settings = preset.enemies
+        config = EnemyConfig(
+            tier_weights=tuple(settings.tier_weights),
+            groups={group: getattr(settings, group) for group in (*GROUPS, "speed")},
+            categories={"regular": settings.regular, "boss": settings.bosses, "human": settings.humans},
+        )
+        result.enemies = randomize_enemies(session, config, random.Random(f"{seed}-enemies"))
+        log(f"Enemy behaviour: {len(result.enemies)} enemy types randomized "
+            f"({sum(bool(r.speed) for r in result.enemies)} with new movement)")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root

@@ -66,3 +66,14 @@ def test_projectiles_tab(window):
     assert window.preset_combo.currentText() == CUSTOM
     settings = window.current_preset().projectiles
     assert settings.environment is False and settings.cross_enemy is True
+
+
+def test_enemies_tab(window):
+    window.preset_combo.setCurrentText("Misery")
+    tab = window.enemies_tab
+    assert tab.distribution.values() == BUILTIN["Misery"].enemies.tier_weights
+    tab.boxes["bosses"].setChecked(True)
+    tab.boxes["speed"].setChecked(False)
+    assert window.preset_combo.currentText() == CUSTOM
+    settings = window.current_preset().enemies
+    assert settings.bosses is True and settings.speed is False

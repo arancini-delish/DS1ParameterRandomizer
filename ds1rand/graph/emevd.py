@@ -5,7 +5,9 @@ passes to the event. Each event is therefore expanded once per distinct argument
 the events no other event runs (the constructors), with replacements applied byte-wise (`read_offset` counts from the
 first argument after `RunEvent`'s slot and event ID). Events nobody runs with arguments keep their literal values.
 
-Edges come from `emevd/<file stem>:<event ID>` nodes; the field is `<instruction alias>.<argument name>`.
+Edges come from `emevd/<file stem>:<event ID>` nodes; the field is `<instruction alias>.<argument name>`. Besides
+param rows, some arguments name map entities (`ENTITY_REFS`): those edges go to `entity/<role>:<entity ID>` nodes, which
+match MSB nodes (`msb/<map>/<entry>:<entity ID>`) by ID, e.g. the characters that get a boss health bar.
 """
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ from pathlib import Path
 from soulstruct.darksouls1ptde.events.emevd.emedf import EMEDF
 from soulstruct.darksouls1r.events.emevd.core import EMEVD
 
-from ds1rand.graph.model import Node, RefGraph
+from ds1rand.graph.model import Edge, Node, RefGraph
 from ds1rand.graph.params import add_reference
 
 RUN_EVENT = (2000, 0)
@@ -36,6 +38,10 @@ INSTRUCTION_REFS: dict[tuple[int, int], dict[str, tuple[str, ...]]] = {
     (2005, 9): {"behavior_param_id": ("BehaviorParam",)},  # CreateHazard
     (2004, 19): {"ai_param_id": ("NpcThinkParam",)},  # SetAIParamID
     (2003, 12): {"game_area_param_id": ("GameAreaParam",)},  # KillBoss
+}
+# (category, index) -> argument name -> entity role.
+ENTITY_REFS: dict[tuple[int, int], dict[str, str]] = {
+    (2003, 11): {"character": "boss"},  # SetBossHealthBarState
 }
 # Instructions with an `item_type` argument selecting which param `item` refers to.
 ITEM_INSTRUCTIONS = {(3, 4), (3, 15), (3, 16), (2003, 24)}
@@ -98,10 +104,15 @@ def _extract_file(emevd: EMEVD, stem: str, row_ids: dict[str, set[int]], graph: 
                 _slot, target = struct.unpack_from("@iI", data, 0)
                 queue.append((target, bytes(data[8:])))
                 continue
-            if key not in INSTRUCTION_REFS and key not in ITEM_INSTRUCTIONS:
+            if key not in INSTRUCTION_REFS and key not in ITEM_INSTRUCTIONS and key not in ENTITY_REFS:
                 continue
             spec = EMEDF[key]
             values = dict(zip(spec["args"], struct.unpack("@" + _args_fmt(ins) + "0i", bytes(data))))
+            for arg, role in ENTITY_REFS.get(key, {}).items():
+                field = f"{spec['alias']}.{arg}"
+                if values[arg] > 0 and (src, field, values[arg]) not in seen_refs:
+                    seen_refs.add((src, field, values[arg]))
+                    graph.add(Edge(src, Node("entity", role, values[arg]), field, "emevd"))
             refs = dict(INSTRUCTION_REFS.get(key, {}))
             if key in ITEM_INSTRUCTIONS and values["item_type"] in ITEM_PARAMS:
                 refs["item"] = (ITEM_PARAMS[values["item_type"]],)

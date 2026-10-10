@@ -2,7 +2,7 @@
 
 Sources:
     meta                `Refs` in `ds1paramdefs/Meta`, including conditional refs (`Bullet(refCategory=1)`)
-    soulstruct          references soulstruct's paramdefs annotate that Meta lacks (`EXTRA_REFS`)
+    soulstruct          references soulstruct's paramdefs annotate that Meta lacks, plus curated ones (`EXTRA_REFS`)
     behavior_variation  EquipParamWeapon/NpcParam `behaviorVariationId` -> every BehaviorParam(_PC) row with that
                         `variationId`. Behavior row IDs are 100000000 (player) / 200000000 (NPC) + variation * 1000 +
                         judge ID, but some vanilla behavior rows do not follow that formula, so the field is matched.
@@ -44,6 +44,8 @@ EXTRA_REFS: dict[str, dict[str, tuple[RefTarget, ...]]] = {
         "materialSetId": (RefTarget("EquipMtrlSetParam"),),
     },
     "Magic": {"replaceMagicId": (RefTarget("Magic"),)},
+    # Curated: every vanilla NpcParam movement value is a MoveParam row (the movement animation set).
+    "NpcParam": {f: (RefTarget("MoveParam"),) for f in ("moveAnimId", "spMoveAnimId1", "spMoveAnimId2")},
     "SpEffectVfxParam": {
         "transformProtectorId": (RefTarget("EquipParamProtector"),),
         "isFullBodyTransformProtectorId": (RefTarget("EquipParamProtector"),),

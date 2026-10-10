@@ -152,6 +152,10 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
    - Rarer armor may get better weight, poise, defenses / resistances and triggered SpEffects.
    - SpEffects come from any fitting SpEffect, with ring-style text in the description.
    - See AUDIT 39-40.
+7. **Body / face data** (done, pending in-game check): `ds1rand/features/appearance.py`.
+   - Four strengths (0 = vanilla, 1 = every value drawn anew within the field's vanilla extremes): NPC faces, character creation face templates, the nine physiques per sex, NPC body proportions. Hair style switches choice with probability = strength.
+   - NPCs sharing a template's face get a copy. UI "Body & Face" tab with sliders, preset section, `--no-appearance`.
+   - The original scope follows.
 7. **Body / face data** (tab):
    - Randomizes NPC face data and the player's character creation templates, with one strength slider for each. Existing saves keep their face and physique.
    - NPC body proportions get their own slider; player body too, if character creation reads it from params (AUDIT 42).

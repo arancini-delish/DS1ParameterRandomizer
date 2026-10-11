@@ -260,7 +260,10 @@ class _ProjectileBuilder:
             motion, loaded = self.motion(slot.root), self.loaded(slot)
             same = [r for r in self.any_roots if self.motion(r) == motion and self.effects(r) <= loaded]
         else:
-            same = [s.root for s in self.by_group[slot.group]]
+            # Same model: its projectiles' effects are not all loaded everywhere it appears either (some live in
+            # one map's bundle only), so the same check applies; the slot's own projectile always fits.
+            loaded = self.loaded(slot) | self.effects(slot.root)
+            same = [s.root for s in self.by_group[slot.group] if self.effects(s.root) <= loaded]
         if slot.group in LIGHT_MODELS:
             same = [r for r in same if self.light(r)]
         return same or [slot.root]
@@ -283,7 +286,11 @@ class _ProjectileBuilder:
             chains = [p for p in self.any_chains if self.effects(p[1]) <= loaded]
             return visuals, chains
         group_pairs = self.pairs.get(slot.group, [])
-        return visual_candidates(self.session, group_pairs), chain_candidates(self.session, group_pairs)
+        loaded = self.loaded(slot) | self.effects(slot.root)
+        visuals = [p for p in visual_candidates(self.session, group_pairs)
+                   if bullet_effects(self.bullets.row_values(p[1])) <= loaded]
+        chains = [p for p in chain_candidates(self.session, group_pairs) if self.effects(p[1]) <= loaded]
+        return visuals, chains
 
     def weights(self, slot: Slot):
         return {"player": self.config.player_weights, "enemy": self.config.enemy_weights,

@@ -99,3 +99,28 @@ def test_deterministic(redirected_install):
         return [(r.npc_id, r.tier, r.factors, r.think_rows, r.speed) for r in run(s, seed=seed)]
     assert snapshot(2) == snapshot(2)
     assert snapshot(2) != snapshot(3)
+
+
+def test_strong_enemies_can_be_marked(session):
+    from ds1rand.features.enemies import MARKS, NPC_SPEFFECT_SLOTS, BehaviourTier
+
+    plain = run(session)
+    assert not any(r.marked for r in plain)
+    marked = run(session, seed=1, mark_strong=True)
+    npc = session.base.params["NpcParam"]
+    seen = set()
+    for r in marked:
+        if r.tier not in MARKS:
+            assert not r.marked
+            continue
+        if not r.marked:  # only when all eight resident slots are taken
+            assert all(npc.row_values(r.npc_id)[f] > 0 for f in NPC_SPEFFECT_SLOTS)
+            continue
+        new = session.store.values("NpcParam", r.npc_id)
+        added = [new[f] for f in NPC_SPEFFECT_SLOTS if new[f] != npc.row_values(r.npc_id)[f]]
+        assert len(added) == 1
+        effect = session.store.values("SpEffectParam", added[0])
+        assert effect["useSpEffectEffect"] == 1 and effect["stateInfo"] == MARKS[r.tier]
+        assert effect["effectEndurance"] < 0 and effect["maxHpRate"] == 1.0 and effect["physicsAttackPowerRate"] == 1.0
+        seen.add(r.tier)
+    assert seen == {BehaviourTier.ALERT, BehaviourTier.RELENTLESS}

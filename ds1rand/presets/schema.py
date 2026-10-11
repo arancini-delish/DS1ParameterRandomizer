@@ -78,6 +78,7 @@ class EnemiesSettings:
     regular: bool = True
     bosses: bool = False
     humans: bool = False
+    mark_strong: bool = False
 
 
 @dataclass

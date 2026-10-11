@@ -9,6 +9,9 @@ Each written file gets two companions:
     <file>.ds1rand.json   marker: SHA-256 of the written file and of the base, and every patch (old and new value of
                           each patched field / string, and the rows ds1rand added)
 
+`forget_base` removes a snapshot (e.g. after re-randomizing the whole game with the other mods, when the old snapshot no
+longer describes the files), restoring the base first if the file on disk is still ds1rand's output.
+
 `resolve_base` picks the base for the next run:
     no marker                          the file on disk is the base ("external")
     file unchanged since our write     the saved base ("rebuilt")
@@ -62,6 +65,25 @@ def resolve_base(path: Path | str, strip: Callable[[bytes, dict], tuple[bytes, l
         return BaseResolution(saved.read_bytes(), "rebuilt")
     data, conflicts = strip(path.read_bytes(), marker["patches"])
     return BaseResolution(data, "stripped", conflicts)
+
+
+def forget_base(path: Path | str) -> str | None:
+    """Remove the snapshot ds1rand keeps next to `path` (`.ds1rand-base` and the marker). If the file is still
+    ds1rand's own output, the saved base is put back first, so ds1rand's output never becomes a later run's base.
+    Returns what was done ("restored", "removed") or None when there was no snapshot."""
+    path = Path(path)
+    saved, marker_file = base_path(path), marker_path(path)
+    if not saved.exists() and not marker_file.exists():
+        return None
+    marker = read_marker(path)
+    restored = False
+    if (marker and path.is_file() and saved.is_file() and sha256_file(path) == marker.get("sha256")
+            and sha256_file(saved) == marker.get("base_sha256")):
+        path.write_bytes(saved.read_bytes())
+        restored = True
+    for companion in (saved, marker_file):
+        companion.unlink(missing_ok=True)
+    return "restored" if restored else "removed"
 
 
 def write_output(path: Path | str, data: bytes, base: bytes, patches: dict, info: dict | None = None) -> None:

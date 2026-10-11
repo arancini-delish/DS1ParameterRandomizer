@@ -181,6 +181,11 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - Weapon tier values are raised: Common 0.92, Uncommon 1.13, Rare 1.35, Legendary 1.6 (were 0.82 / 1.0 / 1.18 / 1.4). The base damage roll is widened to x0.65-1.9 so the higher tiers are reachable.
 - Body and face above 100% strength: characters created with body scales beyond -100..100 failed to join in Seamless Co-op. Body scales now stay within -100..100 and the face templates within vanilla extremes; NPC faces still use the full u8 range.
 
+### Additions (1.0.3)
+- **Remove previous snapshot** (UI button beside Validate, `--clear-snapshots`; `alloc.write.forget_base`): deletes the `.ds1rand-base` / marker pair. If the file is still ds1rand's output, it is restored to the base first, so ds1rand's output never becomes a later run's base.
+- Weapons Standard preset: Common 0.33, Uncommon 0.35, Rare 0.24, Legendary 0.08 (was 0.4 / 0.35 / 0.2 / 0.05).
+- Enemy behaviour `mark_strong` (off by default): Alert enemies get the Blue Tearstone glow (stateInfo 49) and Relentless ones the Red Tearstone glow (48), via a visual-only resident SpEffect in a free NpcParam slot. The stateInfo has no hardcoded behaviour of its own, and the particles are always loaded.
+
 ### Phase 8 — Packaging (done)
 - PyInstaller build (`packaging/ds1rand.spec`, `uv run --group build python tools/build_release.py`). One folder `dist/ds1rand/` holds:
   - `ds1rand.exe` (the UI) and `ds1rand-cli.exe` (the command line), sharing one runtime;

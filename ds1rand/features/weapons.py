@@ -62,7 +62,7 @@ TIER_LEVEL = {WeaponTier.COMMON: Level.LOW, WeaponTier.UNCOMMON: Level.MEDIUM, W
               WeaponTier.LEGENDARY: Level.LEGENDARY}
 PRESETS = {
     "Easy": (0.3, 0.35, 0.25, 0.1),
-    "Standard": (0.4, 0.35, 0.2, 0.05),
+    "Standard": (0.33, 0.35, 0.24, 0.08),
     "Hard": (0.55, 0.3, 0.12, 0.03),
     "Misery": (0.7, 0.22, 0.07, 0.01),
 }

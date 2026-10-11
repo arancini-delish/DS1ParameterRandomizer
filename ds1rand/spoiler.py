@@ -100,7 +100,7 @@ def spoiler_text(preset: Preset, result: RunResult) -> str:
     if preset.enemies.enabled:
         lines += _section("Enemy behaviour", [
             f"{e.name or e.model} (NpcParam {e.npc_id}, {e.category}) [{e.tier.name.title()}]: "
-            + ", ".join(f"{g} x{f:.2f}" for g, f in e.factors.items()) + (f"; moves {e.speed}" if e.speed else "")
+            + ", ".join(f"{g} x{f:.2f}" for g, f in e.factors.items()) + (f"; moves {e.speed}" if e.speed else "") + ("; marked" if e.marked else "")
             for e in result.enemies])
     if preset.weapons.enabled:
         rows = []

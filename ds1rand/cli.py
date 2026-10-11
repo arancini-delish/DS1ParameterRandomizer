@@ -26,7 +26,7 @@ from ds1rand.features.rings import PRESETS as RING_PRESETS
 from ds1rand.fingerprint import fingerprint
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import BUILTIN, Preset
-from ds1rand.run import DEFAULT_OUT, run
+from ds1rand.run import DEFAULT_OUT, clear_snapshots, run
 
 
 def main() -> None:
@@ -45,6 +45,9 @@ def main() -> None:
     parser.add_argument("--no-armor", action="store_true")
     parser.add_argument("--no-appearance", action="store_true")
     parser.add_argument("--no-spoiler", action="store_true", help="Do not write ds1rand-spoiler.txt")
+    parser.add_argument("--clear-snapshots", action="store_true",
+                        help="Remove ds1rand's saved snapshots from the game folder (restoring its files first if they "
+                             "are still ds1rand output) and exit; use after re-randomizing the game with other mods")
     parser.add_argument("--fingerprint", action="store_true",
                         help="Print the game files fingerprint of the install (compare with co-op partners) and exit")
     parser.add_argument("--seed", type=int)
@@ -79,6 +82,10 @@ def main() -> None:
         preset.seed = args.seed
 
     install = GameInstall(Path(args.game_dir)) if args.game_dir else GameInstall.default()
+    if args.clear_snapshots:
+        for line in clear_snapshots(install):
+            print(line)
+        return
     if args.fingerprint:
         print(fingerprint(install.root).text())
         return

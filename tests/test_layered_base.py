@@ -152,3 +152,21 @@ def test_session_round_trip(redirected_install, modded_base):
     assert written.row_values("Bullet", new_bullet)["life"] == 2.5
     assert ItemText.from_path(redirected.item_msgbnd).get("Magic_name", 3000) == "Session Arrow"
     assert rows_of(redirected.gameparam.read_bytes(), "ItemLotParam") == rows_of(modded_base, "ItemLotParam")
+
+
+def test_forget_base_restores_our_output_and_removes_stale_snapshots(tmp_path):
+    from ds1rand.alloc.write import base_path, forget_base, write_output
+    from ds1rand.baseline.compare import marker_path
+
+    game = tmp_path / "GameParam.parambnd.dcx"
+    write_output(game, b"randomized", b"vanilla", {})
+    assert forget_base(game) == "restored"
+    assert game.read_bytes() == b"vanilla"
+    assert not base_path(game).exists() and not marker_path(game).exists()
+    assert forget_base(game) is None
+
+    write_output(game, b"randomized", b"vanilla", {})
+    game.write_bytes(b"other mods ran again")  # the whole game was re-randomized: the snapshot is stale
+    assert forget_base(game) == "removed"
+    assert game.read_bytes() == b"other mods ran again"
+    assert not base_path(game).exists() and not marker_path(game).exists()

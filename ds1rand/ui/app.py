@@ -32,7 +32,7 @@ from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
 from ds1rand.presets.schema import BUILTIN, AppearanceSettings, ArmorSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
-from ds1rand.run import DEFAULT_OUT, RunResult, run, validate
+from ds1rand.run import DEFAULT_OUT, RunResult, clear_snapshots, run, validate
 from ds1rand.ui.audit import AuditTab
 from ds1rand.ui.widgets import DistributionEditor
 
@@ -346,7 +346,8 @@ class EnemiesTab(QtWidgets.QWidget):
     GROUPS = (("turn", "Turn speed"), ("detection", "Detection (sight, hearing, smell)"),
               ("pursuit", "Pursuit (leash distance, memory)"), ("speed", "Movement (walk / run swaps)"),
               ("poise", "Poise"), ("stamina", "Stamina"))
-    CATEGORIES = (("regular", "Regular enemies"), ("bosses", "Bosses"), ("humans", "NPCs, invaders and phantoms"))
+    CATEGORIES = (("regular", "Regular enemies"), ("bosses", "Bosses"), ("humans", "NPCs, invaders and phantoms"),
+                  ("mark_strong", "Mark strong enemies (Alert: blue glow, Relentless: red glow)"))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -377,8 +378,8 @@ class EnemiesTab(QtWidgets.QWidget):
             options.addWidget(group)
         layout.addWidget(self.options)
 
-        self.results = QtWidgets.QTableWidget(0, 6)
-        self.results.setHorizontalHeaderLabels(["Enemy", "Row", "Category", "Tier", "Movement", "Factors"])
+        self.results = QtWidgets.QTableWidget(0, 7)
+        self.results.setHorizontalHeaderLabels(["Enemy", "Row", "Category", "Tier", "Movement", "Marked", "Factors"])
         self.results.horizontalHeader().setStretchLastSection(True)
         self.results.verticalHeader().setVisible(False)
         self.results.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -409,7 +410,7 @@ class EnemiesTab(QtWidgets.QWidget):
         for row, e in enumerate(result.enemies):
             factors = ", ".join(f"{group} x{factor:.2f}" for group, factor in e.factors.items())
             for col, text in enumerate((e.name or e.model, str(e.npc_id), e.category, e.tier.name.title(),
-                                        e.speed or "-", factors)):
+                                        e.speed or "-", "yes" if e.marked else "-", factors)):
                 self.results.setItem(row, col, QtWidgets.QTableWidgetItem(text))
         self.results.resizeColumnsToContents()
 
@@ -696,11 +697,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         buttons = QtWidgets.QHBoxLayout()
         buttons.addStretch()
+        self.clear_button = QtWidgets.QPushButton("Remove previous snapshot")
+        self.clear_button.setToolTip("Delete the copies of the pre-ds1rand files that ds1rand keeps in the game folder.\n"
+                                     "Use after re-randomizing the game with the other mods.")
+        self.clear_button.clicked.connect(self._clear_snapshots)
         self.validate_button = QtWidgets.QPushButton("Validate install")
         self.validate_button.clicked.connect(self._validate)
         self.randomize_button = QtWidgets.QPushButton("Randomize")
         self.randomize_button.setDefault(True)
         self.randomize_button.clicked.connect(self._randomize)
+        buttons.addWidget(self.clear_button)
         buttons.addWidget(self.validate_button)
         buttons.addWidget(self.randomize_button)
         layout.addLayout(buttons)
@@ -856,6 +862,24 @@ class MainWindow(QtWidgets.QMainWindow):
         if install:
             self._start(lambda log: validate(install), self._show_install, "Validating")
 
+    def _clear_snapshots(self) -> None:
+        install = self._install()
+        if install is None:
+            return
+        answer = QtWidgets.QMessageBox.question(
+            self, "Remove previous snapshot",
+            "ds1rand keeps a copy of the game files as they were before it ran (the base for the next run).\n\n"
+            "Remove it? Do this after re-randomizing the game with the item / enemy / fog gate randomizers, so the "
+            "next run starts from their new files.\n\nIf the game files are still ds1rand's output, they are first "
+            "put back to how they were before ds1rand.")
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        lines = clear_snapshots(install)
+        self.install_view.setPlainText("\n".join(lines))
+        self.tabs.setCurrentWidget(self.install_view)
+        for line in lines:
+            self._log(line)
+
     def _randomize(self) -> None:
         install = self._install()
         if install is None:
@@ -884,6 +908,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _start(self, job, on_done, label: str) -> None:
         self._log(f"{label}...")
+        self.clear_button.setEnabled(False)
         self.validate_button.setEnabled(False)
         self.randomize_button.setEnabled(False)
         self._thread = QtCore.QThread(self)
@@ -899,6 +924,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._thread.start()
 
     def _done(self) -> None:
+        self.clear_button.setEnabled(True)
         self.validate_button.setEnabled(True)
         self.randomize_button.setEnabled(True)
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from ds1rand.alloc.write import forget_base
 from ds1rand.features.appearance import AppearanceConfig, AppearanceResult, randomize_appearance
 from ds1rand.features.armor import ArmorConfig, ArmorResult, randomize_armor
 from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize_enemies
@@ -56,6 +57,18 @@ def validate(install: GameInstall) -> RunResult:
     result = _result(session, seed=0)
     result.fingerprint = fingerprint(install.root)
     return result
+
+
+def clear_snapshots(install: GameInstall) -> list[str]:
+    """Remove the snapshots ds1rand keeps in the game folder (see `alloc.write.forget_base`); one line per file."""
+    lines = []
+    for relative in (GameInstall.GAMEPARAM, GameInstall.ITEM_MSGBND):
+        outcome = forget_base(install.root / relative)
+        if outcome == "restored":
+            lines.append(f"{relative}: restored to how it was before ds1rand, snapshot removed")
+        elif outcome == "removed":
+            lines.append(f"{relative}: snapshot removed (the file is no longer ds1rand's output)")
+    return lines or ["No ds1rand snapshot in the game folder"]
 
 
 def run(
@@ -111,6 +124,7 @@ def run(
             tier_weights=tuple(settings.tier_weights),
             groups={group: getattr(settings, group) for group in (*GROUPS, "speed")},
             categories={"regular": settings.regular, "boss": settings.bosses, "human": settings.humans},
+            mark_strong=settings.mark_strong,
         )
         result.enemies = randomize_enemies(session, config, random.Random(f"{seed}-enemies"))
         log(f"Enemy behaviour: {len(result.enemies)} enemy types randomized "

@@ -186,3 +186,16 @@ def test_swarming_humanity_gets_light_projectiles(session):
             assert 0 < damage <= LIGHT_DAMAGE_CAP + 1
             checked += 1
     assert checked >= 6
+
+
+def test_same_model_projectiles_only_show_loaded_effects(session):
+    """With cross-model donors off (and for orbiting / attached bullets always), a model's own projectiles are not all
+    loaded wherever it appears either: some effects live in one map's bundle only."""
+    results = run(session, visual_chance=1.0, chain_chance=0.5, cross_enemy=False)
+    builder = _ProjectileBuilder(session, ProjectileConfig(cross_enemy=False), random.Random(0))
+    for r in results:
+        if r.slot.owner == "player":
+            continue
+        allowed = builder.loaded(r.slot) | builder.effects(r.slot.root)
+        for bullet in _new_chain(session, r.root):
+            assert bullet_effects(session.store.values("Bullet", bullet)) <= allowed, (r.slot, bullet)

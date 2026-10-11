@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 
 from ds1rand.defs.meta import load_row_names
+from ds1rand.features.passives import passive_template
 from ds1rand.graph.model import Node
 from ds1rand.session import Session
 
@@ -66,6 +67,12 @@ GROUPS: dict[str, tuple[str, tuple[tuple[str, float | None], ...]]] = {
     "poise": ("NpcParam", (("superArmorDurability", None),)),
     "stamina": ("NpcParam", (("stamina", None), ("staminaRecoverBaseVel", None))),
 }
+# Marks for strong enemies (`mark_strong`): a visual-only SpEffect in a free resident slot of the enemy's NpcParam row.
+# `useSpEffectEffect` makes `stateInfo` a SpEffectVfxParam row. These two are the Tearstone rings' glows: their
+# stateInfo has no hardcoded behaviour of its own (the rings' boosts live in other fields) and their particles are in
+# the always-loaded effects, so they show on any enemy anywhere.
+MARKS = {BehaviourTier.ALERT: 49, BehaviourTier.RELENTLESS: 48}  # blue (Blue Tearstone), red (Red Tearstone)
+NPC_SPEFFECT_SLOTS = tuple(f"spEffectID{i}" for i in range(8))
 SENTINEL = 9999  # "unlimited" / "instant" in distance, time and turn fields
 HUMAN_MODEL = "c0000"
 HUMAN_ROWS = 100000  # NpcParam rows below this are human characters (NPCs, invaders, phantoms)
@@ -76,6 +83,7 @@ class EnemyConfig:
     tier_weights: tuple[float, float, float, float] = PRESETS["Standard"]
     groups: dict[str, bool] = field(default_factory=lambda: dict.fromkeys((*GROUPS, "speed"), True))
     categories: dict[str, bool] = field(default_factory=lambda: {"regular": True, "boss": False, "human": False})
+    mark_strong: bool = False  # give Alert / Relentless enemies a glow (`MARKS`)
 
 
 @dataclass
@@ -88,6 +96,7 @@ class EnemyResult:
     think_rows: list[int] = field(default_factory=list)
     speed: str = ""  # "faster" / "slower" when the movement animations were swapped
     name: str = ""
+    marked: bool = False
 
 
 @dataclass
@@ -160,6 +169,7 @@ class _EnemyBuilder:
         self.config = config
         self.rng = rng
         self.types = enemy_types(session)
+        self.marks: dict[BehaviourTier, int] = {}
         self.limits = {
             "NpcParam": field_limits(session, "NpcParam", self.types),
             "NpcThinkParam": field_limits(session, "NpcThinkParam",
@@ -200,8 +210,29 @@ class _EnemyBuilder:
             move = self._speed(npc["moveAnimId"], result.factors["speed"])
             if move is not None:
                 updates["moveAnimId"], result.speed = move
+        if self.config.mark_strong and result.tier in MARKS:
+            slot = next((f for f in NPC_SPEFFECT_SLOTS if npc[f] <= 0), None)
+            if slot is not None:
+                updates[slot] = self._mark(result.tier)
+                result.marked = True
         if updates:
             self.session.store.set("NpcParam", result.npc_id, updates)
+
+    def _mark(self, tier: BehaviourTier) -> int:
+        """The shared marker SpEffect of a tier: does nothing but show the glow, for as long as the enemy lives."""
+        if tier not in self.marks:
+            speffect = self.session.ids.allocate("SpEffectParam")
+            rings = self.session.base.params["EquipParamAccessory"]
+            template_row = rings.row_values(min(r for r in rings.rows if r))["refId"]
+            self.session.store.add("SpEffectParam", speffect, copy_from=template_row)
+            self.session.store.set("SpEffectParam", speffect, {
+                **passive_template(self.session), "useSpEffectEffect": 1, "stateInfo": MARKS[tier],
+                "effectEndurance": -1.0, "conditionHp": -1.0, "iconId": -1, "effectTargetSelf": 1,
+                "effectTargetAI": 1, "effectTargetLive": 1, "effectTargetEnemy": 0, "effectTargetPlayer": 0,
+                "effectTargetFriend": 0,
+            })
+            self.marks[tier] = speffect
+        return self.marks[tier]
 
     def _speed(self, move_id: int, factor: float) -> tuple[int, str] | None:
         moves = self.session.base.params["MoveParam"]

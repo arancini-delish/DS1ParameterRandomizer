@@ -31,7 +31,7 @@ from ds1rand.features.projectiles import ENEMY_PRESETS as ENEMY_PROJECTILE_PRESE
 from ds1rand.features.projectiles import PRESETS as PROJECTILE_PRESETS
 from ds1rand.features.projectiles import ProjectileTier
 from ds1rand.io.install import GameInstall
-from ds1rand.presets.schema import BUILTIN, AppearanceSettings, ArmorSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
+from ds1rand.presets.schema import BUILTIN, AppearanceSettings, ArmorSettings, HintsSettings, EnemiesSettings, Preset, WeaponsSettings, ProjectilesSettings, RingsSettings, SpellsSettings
 from ds1rand.run import DEFAULT_OUT, RunResult, clear_snapshots, run, validate
 from ds1rand.ui.audit import AuditTab
 from ds1rand.ui.widgets import DistributionEditor
@@ -653,6 +653,44 @@ class AppearanceTab(QtWidgets.QWidget):
                              f"{len(a.physiques)} physiques and {len(a.npc_bodies)} NPC bodies.")
 
 
+class ExtrasTab(QtWidgets.QWidget):
+    changed = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.hints = QtWidgets.QCheckBox(
+            "Hint item: every starting class gets \"Wanderer's Notes\", telling in which regions the Covenant of "
+            "Artorias, Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring and Darkmoon Seance Ring are")
+        self.hints.toggled.connect(self.changed)
+        layout.addWidget(self.hints)
+        note = QtWidgets.QLabel(
+            "Uses the item randomizer's newest seed folder that matches the installed game (and the fog gate "
+            "randomizer's newest log for how each region is entered). Run the other randomizers first.")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        self.preview = QtWidgets.QPlainTextEdit(readOnly=True)
+        layout.addWidget(self.preview, stretch=1)
+
+    def settings(self) -> HintsSettings:
+        return HintsSettings(enabled=self.hints.isChecked())
+
+    def apply(self, settings: HintsSettings) -> None:
+        self.hints.blockSignals(True)
+        self.hints.setChecked(settings.enabled)
+        self.hints.blockSignals(False)
+
+    def show_results(self, result: RunResult) -> None:
+        h = result.hints
+        if h is None:
+            self.preview.setPlainText("")
+        elif h.problem:
+            self.preview.setPlainText(f"Hint item not added: {h.problem}")
+        else:
+            self.preview.setPlainText("\n".join([f"Wanderer's Notes (goods {h.goods_id}), from {h.seed_dir.name}",
+                                                 "", *h.hints.values()]))
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -688,6 +726,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.appearance_tab = AppearanceTab()
         self.appearance_tab.changed.connect(self._settings_edited)
         self.tabs.addTab(self.appearance_tab, "Body && Face")
+        self.extras_tab = ExtrasTab()
+        self.extras_tab.changed.connect(self._settings_edited)
+        self.tabs.addTab(self.extras_tab, "Extras")
         self.install_view = QtWidgets.QPlainTextEdit(readOnly=True)
         self.install_view.setPlaceholderText("Validate the install to see what a run would build on.")
         self.tabs.addTab(self.install_view, "Install")
@@ -778,7 +819,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return Preset(name=name, seed=seed, rings=self.rings_tab.settings(), spells=self.spells_tab.settings(),
                       projectiles=self.projectiles_tab.settings(), enemies=self.enemies_tab.settings(),
                       weapons=self.weapons_tab.settings(), armor=self.armor_tab.settings(),
-                      appearance=self.appearance_tab.settings())
+                      appearance=self.appearance_tab.settings(), hints=self.extras_tab.settings())
 
     def apply_preset(self, preset: Preset) -> None:
         self._loading = True
@@ -789,6 +830,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weapons_tab.apply(preset.weapons)
         self.armor_tab.apply(preset.armor)
         self.appearance_tab.apply(preset.appearance)
+        self.extras_tab.apply(preset.hints)
         self.seed.setText("" if preset.seed is None else str(preset.seed))
         builtin = BUILTIN.get(preset.name)
         same = builtin is not None and _sections(builtin) == _sections(preset)
@@ -952,6 +994,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.weapons_tab.show_results(result)
         self.armor_tab.show_results(result)
         self.appearance_tab.show_results(result)
+        self.extras_tab.show_results(result)
         self.audit_tab.set_session(result.session)
         self.seed.setText(str(result.seed))
         self._log(f"Done (seed {result.seed}). Share string: {self.current_preset().to_share_string()}")
@@ -962,7 +1005,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def _sections(preset: Preset) -> tuple:
     """The feature settings of a preset (what decides whether it still matches a built-in)."""
-    return preset.rings, preset.spells, preset.projectiles, preset.enemies, preset.weapons, preset.armor, preset.appearance
+    return preset.rings, preset.spells, preset.projectiles, preset.enemies, preset.weapons, preset.armor, preset.appearance, preset.hints
 
 
 def main() -> int:

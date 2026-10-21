@@ -128,6 +128,11 @@ def spoiler_text(preset: Preset, result: RunResult) -> str:
             f"Physiques: {len(a.physiques)} at {s.physiques:.0%}",
             f"NPC bodies: {len(a.npc_bodies)} at {s.npc_bodies:.0%}",
         ])
+    if preset.hints.enabled and result.hints is not None:
+        h = result.hints
+        lines += _section("Hint item", [f"Not added: {h.problem}"] if h.problem else
+                          [f"Goods {h.goods_id}, from {h.seed_dir.name}" + (f" and {h.fog_log.name}" if h.fog_log else ""),
+                           *h.hints.values()])
     return "\n".join(lines) + "\n"
 
 

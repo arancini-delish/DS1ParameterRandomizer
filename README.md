@@ -25,6 +25,7 @@ Re-running is safe. ds1rand always rebuilds from the files as the other mods lef
 If you re-randomize the whole game with the other randomizers (for example after verifying the game files in Steam), press **Remove previous snapshot** first. ds1rand keeps a copy of the files from before it ran (`.ds1rand-base` / `.ds1rand.json` next to them), and that copy no longer matches. The button puts the game files back to how they were before ds1rand if they are still its output, then deletes the copy. On the command line: `ds1rand-cli.exe --clear-snapshots`.
 
 **Other features**
+- **Hint item** (Extras tab): with the item randomizer (and optionally the fog gate randomizer) installed, every starting class gets "Wanderer's Notes". It lists where the Covenant of Artorias, Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring and Darkmoon Seance Ring are, and how each region is entered.
 - **Validate install:** shows what other mods changed.
 - **Audit tab:** browse how every param row is used and what a run changed.
 

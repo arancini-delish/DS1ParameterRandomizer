@@ -130,9 +130,8 @@ def spoiler_text(preset: Preset, result: RunResult) -> str:
         ])
     if preset.hints.enabled and result.hints is not None:
         h = result.hints
-        lines += _section("Hint item", [f"Not added: {h.problem}"] if h.problem else
-                          [f"Goods {h.goods_id}, from {h.seed_dir.name}" + (f" and {h.fog_log.name}" if h.fog_log else ""),
-                           *h.hints.values()])
+        lines += _section("Hint notes (Master Key description)", [f"Not written: {h.problem}"] if h.problem else
+                          [f"From {h.seed_dir.name}", *(f"{item}: {region}" for item, region in h.hints.items())])
     return "\n".join(lines) + "\n"
 
 

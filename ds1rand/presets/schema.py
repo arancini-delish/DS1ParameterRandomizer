@@ -115,7 +115,7 @@ class AppearanceSettings:
 
 @dataclass
 class HintsSettings:
-    enabled: bool = False  # starting key item hinting where key items are (needs the item randomizer's output)
+    enabled: bool = False  # Master Key description hinting where key items are (needs the item randomizer's output)
 
 
 @dataclass

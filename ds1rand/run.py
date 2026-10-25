@@ -10,7 +10,7 @@ from typing import Callable
 from ds1rand.alloc.write import forget_base
 from ds1rand.features.appearance import AppearanceConfig, AppearanceResult, randomize_appearance
 from ds1rand.features.armor import ArmorConfig, ArmorResult, randomize_armor
-from ds1rand.features.hints import HintResult, add_hint_item
+from ds1rand.features.hints import HintResult, add_hint_notes
 from ds1rand.features.enemies import GROUPS, EnemyConfig, EnemyResult, randomize_enemies
 from ds1rand.features.rings import RingConfig, RingResult, randomize_rings
 from ds1rand.features.projectiles import ProjectileConfig, ProjectileResult, randomize_projectiles
@@ -157,13 +157,12 @@ def run(
             f"{len(a.physiques)} physiques, {len(a.npc_bodies)} NPC bodies")
 
     if preset.hints.enabled:
-        result.hints = add_hint_item(session)
+        result.hints = add_hint_notes(session)
         if result.hints.problem:
-            log(f"Hint item not added: {result.hints.problem}")
+            log(f"Hint notes not written: {result.hints.problem}")
         else:
-            log(f"Hint item added to the starting inventory ({len(result.hints.hints)} hints from "
-                f"{result.hints.seed_dir.name}" + (f" and {result.hints.fog_log.name}" if result.hints.fog_log else "")
-                + ")")
+            log(f"Hint notes written into the Master Key's description ({len(result.hints.hints)} items, from "
+                f"{result.hints.seed_dir.name})")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root

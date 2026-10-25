@@ -1,34 +1,15 @@
-"""Hint item: parsing the item / fog gate randomizer output, and the item itself."""
+"""Hint notes: parsing the item randomizer's output, and the Master Key description; pinned rings."""
 import random
 from pathlib import Path
 
 import pytest
 
-from ds1rand.features.hints import (
-    CLASSES, HINTED_ITEMS, add_hint_item, fog_entrances, item_regions, region_of,
-)
+from ds1rand.features.hints import HINTED_ITEMS, LINE_WIDTH, MASTER_KEY, add_hint_notes, item_regions, notes_text
 from ds1rand.features.rings import RingConfig, randomize_rings
 from ds1rand.graph.model import Node
 from ds1rand.session import Session
 
-HINTSHEET = """Hint Locations for Keys:
-
-Covenant of Artorias: Tomb of the Giants
-Key to the Seal: Oolacile Township
-Peculiar Doll: Chasm of the Abyss
-Broken Pendant: The Duke's Archives
-Orange Charred Ring: Anor Londo
-Darkmoon Seance Ring: Great Hollow
-"""
-FOG_LOG = """Seed: 1. Options: boss
-asylum (scaling: 100%)
-  From asylum_balcony (in map) to asylum
-darkroot (scaling: 100%)
-  From parish_church (To Sif) to darkroot
-totg (scaling: 120%)
-  From totg_lower (in map) to totg
-  From darkroot (Down the well) to totg
-"""
+HINTSHEET = "Hint Locations for Keys:\n\n" + "".join(f"{item}: Tomb of the Giants\n" for item in HINTED_ITEMS)
 
 
 def _seed(root: Path, name: str, lots: bytes) -> None:
@@ -47,30 +28,21 @@ def test_item_regions_use_the_seed_matching_the_installed_lots(tmp_path):
     assert item_regions(tmp_path, b"other") == (None, {})
 
 
-def test_fog_entrances(tmp_path):
-    runs = tmp_path / "FogMod_v0.3" / "runs"
-    runs.mkdir(parents=True)
-    (runs / "2026-10-12_20.50.55_log_1_1.txt").write_text(FOG_LOG, encoding="utf-8")
-    log, entrances = fog_entrances(tmp_path)
-    assert log.name.endswith("_log_1_1.txt")
-    assert entrances["Tomb of the Giants"] == "Darkroot Garden, Down the well"
-    assert entrances["Darkroot Garden"] == "Undead Parish, To Sif"
-    assert region_of("demonruins_izalithlava") == "Lost Izalith" and region_of("demonruins_lava") == "Demon Ruins"
+def test_notes_are_region_only_and_fit_the_description_box():
+    text = notes_text({"Very Large Ember": "Painted World of Ariamis", "Key to Depths": "Anor Londo"})
+    assert "(" not in text and "Key to Depths: Anor Londo" in text
+    assert all(len(line) <= LINE_WIDTH for line in text.splitlines())
 
 
-def test_hint_item_in_every_starting_inventory(install, tmp_path):
+def test_hint_notes_go_into_the_master_key(install):
     session = Session.open(install)
-    result = add_hint_item(session)
+    result = add_hint_notes(session)
     if result.problem:
         pytest.skip(f"the installed game has no matching item randomizer seed: {result.problem}")
-    assert set(result.hints) == set(HINTED_ITEMS)
-    goods = session.store.values("EquipParamGoods", result.goods_id)
-    assert session.store.is_new("EquipParamGoods", result.goods_id) and goods["refCategory"] == 0
-    for class_id in CLASSES:
-        row = session.store.values("CharaInitParam", class_id)
-        assert result.goods_id in [row[f"item_{i:02d}"] for i in range(1, 11)]
-    text = session.text[("Item_long_desc", result.goods_id)]
-    assert all(len(line) <= 44 for line in text.splitlines()) and "Covenant of Artorias" in text
+    assert set(result.hints) == set(HINTED_ITEMS) and result.goods_id == MASTER_KEY
+    text = session.text[("Item_long_desc", MASTER_KEY)]
+    assert all(f"{item}: " in text.replace("\n  ", " ") for item in HINTED_ITEMS)
+    assert not session.store.changes()  # no params touched: only the text
 
 
 def test_pinned_and_event_checked_rings_keep_their_speffects(redirected_install):

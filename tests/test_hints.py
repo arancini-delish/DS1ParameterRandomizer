@@ -1,10 +1,10 @@
-"""Hint notes: parsing the item randomizer's output, and the Master Key description; pinned rings."""
+"""Hint notes: parsing the item randomizer's output, and the Darksign description; pinned rings."""
 import random
 from pathlib import Path
 
 import pytest
 
-from ds1rand.features.hints import HINTED_ITEMS, LINE_WIDTH, MASTER_KEY, add_hint_notes, item_regions, notes_text
+from ds1rand.features.hints import HINTED_ITEMS, DARKSIGN, LINE_WIDTH, add_hint_notes, item_regions, notes_text
 from ds1rand.features.rings import RingConfig, randomize_rings
 from ds1rand.graph.model import Node
 from ds1rand.session import Session
@@ -34,13 +34,13 @@ def test_notes_are_region_only_and_fit_the_description_box():
     assert all(len(line) <= LINE_WIDTH for line in text.splitlines())
 
 
-def test_hint_notes_go_into_the_master_key(install):
+def test_hint_notes_go_into_the_darksign(install):
     session = Session.open(install)
     result = add_hint_notes(session)
     if result.problem:
         pytest.skip(f"the installed game has no matching item randomizer seed: {result.problem}")
-    assert set(result.hints) == set(HINTED_ITEMS) and result.goods_id == MASTER_KEY
-    text = session.text[("Item_long_desc", MASTER_KEY)]
+    assert set(result.hints) == set(HINTED_ITEMS) and result.goods_id == DARKSIGN
+    text = session.text[("Item_long_desc", DARKSIGN)]
     assert all(f"{item}: " in text.replace("\n  ", " ") for item in HINTED_ITEMS)
     assert not session.store.changes()  # no params touched: only the text
 

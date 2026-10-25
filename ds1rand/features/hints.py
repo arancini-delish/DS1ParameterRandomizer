@@ -1,11 +1,11 @@
-"""Hint notes: the Master Key's description tells in which region each key item is this seed.
+"""Hint notes: the Darksign's description tells in which region each key item is this seed.
 
 Where the items are comes from the item randomizer's own output in the game folder: each run writes
 `random-seed-<time>/hintsheet.txt` (region of every key item) next to the `ItemLotParam.param` it installed. The
 newest seed folder whose `ItemLotParam.param` is byte-identical to the item lots in the installed params (the base
 ds1rand builds on) is used, so hints never come from an older run.
 
-The notes go into the Master Key's long description (the Thief starts with it, any class can pick it as a gift).
+The notes go into the Darksign's long description: every class starts with the Darksign.
 Adding a new item to the starting classes was tried first (a new EquipParamGoods row in CharaInitParam 3000-3009
 item slots): the output was right, but the game did not give the item at character creation, so an existing item
 carries the notes instead.
@@ -21,9 +21,9 @@ from ds1rand.session import Session
 
 HINTED_ITEMS = ("Covenant of Artorias", "Key to the Seal", "Peculiar Doll", "Broken Pendant", "Orange Charred Ring",
                 "Darkmoon Seance Ring", "Key to Depths", "Large Ember", "Very Large Ember")
-MASTER_KEY = 2100
+DARKSIGN = 117
 LINE_WIDTH = 44  # item descriptions do not wrap by themselves
-HEADER = "Notes scratched into the key's leather tag:"
+HEADER = "Burned into the sign, visions of what lies ahead:"
 
 
 @dataclass
@@ -63,6 +63,6 @@ def add_hint_notes(session: Session) -> HintResult:
         result.problem = "no item randomizer seed folder (random-seed-*) matches the installed item lots"
         return result
     result.hints = {item: regions[item] for item in HINTED_ITEMS if item in regions}
-    result.goods_id = MASTER_KEY
-    session.text[("Item_long_desc", MASTER_KEY)] = notes_text(result.hints)
+    result.goods_id = DARKSIGN
+    session.text[("Item_long_desc", DARKSIGN)] = notes_text(result.hints)
     return result

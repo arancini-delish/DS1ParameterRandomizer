@@ -187,9 +187,9 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
   - Rings whose SpEffect events check by ID (Darkmoon Blade and Cat covenant rings) are randomized in place, keeping the ID.
   - Rings whose SpEffect the engine uses directly (Hornet Ring) stay vanilla.
 - **Hint notes** (`features/hints.py`, Extras tab, off by default):
-  - The Master Key's description lists the region of the Covenant of Artorias, Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring, Darkmoon Seance Ring, Key to Depths, Large Ember and Very Large Ember.
+  - The Darksign's description lists the region of the Covenant of Artorias, Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring, Darkmoon Seance Ring, Key to Depths, Large Ember and Very Large Ember.
   - The regions come from the item randomizer's newest `random-seed-*/hintsheet.txt` whose `ItemLotParam.param` matches the installed item lots.
-  - 1.0.4 tried a new goods row ("Wanderer's Notes") in the starting classes' item slots. The written params were right, but the game did not grant it at character creation, so 1.0.5 uses the Master Key. The fog gate "way in" lines were dropped as inaccurate.
+  - 1.0.4 tried a new goods row ("Wanderer's Notes") in the starting classes' item slots. The written params were right, but the game did not grant it at character creation, so 1.0.5 uses an existing item's description: the Darksign, which every class starts with. The fog gate "way in" lines were dropped as inaccurate.
 
 ### Additions (1.0.3)
 - **Remove previous snapshot** (UI button beside Validate, `--clear-snapshots`; `alloc.write.forget_base`): deletes the `.ds1rand-base` / marker pair. If the file is still ds1rand's output, it is restored to the base first, so ds1rand's output never becomes a later run's base.

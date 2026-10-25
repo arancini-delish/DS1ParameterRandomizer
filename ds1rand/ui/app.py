@@ -660,14 +660,14 @@ class ExtrasTab(QtWidgets.QWidget):
         super().__init__(parent)
         layout = QtWidgets.QVBoxLayout(self)
         self.hints = QtWidgets.QCheckBox(
-            "Hint notes: the Master Key's description tells in which region the key items are (Covenant of Artorias, "
+            "Hint notes: the Darksign's description tells in which region the key items are (Covenant of Artorias, "
             "Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring, Darkmoon Seance Ring, Key to Depths, "
             "Large Ember, Very Large Ember)")
         self.hints.toggled.connect(self.changed)
         layout.addWidget(self.hints)
         note = QtWidgets.QLabel(
             "Uses the item randomizer's newest seed folder that matches the installed game: run the other "
-            "randomizers first. The Thief starts with the Master Key; any class can pick it as the starting gift.")
+            "randomizers first. Every class starts with the Darksign.")
         note.setWordWrap(True)
         layout.addWidget(note)
         self.preview = QtWidgets.QPlainTextEdit(readOnly=True)
@@ -688,7 +688,7 @@ class ExtrasTab(QtWidgets.QWidget):
         elif h.problem:
             self.preview.setPlainText(f"Hint notes not written: {h.problem}")
         else:
-            self.preview.setPlainText("\n".join([f"Master Key description, from {h.seed_dir.name}:", "",
+            self.preview.setPlainText("\n".join([f"Darksign description, from {h.seed_dir.name}:", "",
                                                  *(f"{item}: {region}" for item, region in h.hints.items())]))
 
 

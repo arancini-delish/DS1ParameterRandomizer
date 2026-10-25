@@ -115,7 +115,7 @@ class AppearanceSettings:
 
 @dataclass
 class HintsSettings:
-    enabled: bool = False  # Master Key description hinting where key items are (needs the item randomizer's output)
+    enabled: bool = False  # Darksign description hinting where key items are (needs the item randomizer's output)
 
 
 @dataclass

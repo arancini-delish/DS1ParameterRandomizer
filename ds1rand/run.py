@@ -161,7 +161,7 @@ def run(
         if result.hints.problem:
             log(f"Hint notes not written: {result.hints.problem}")
         else:
-            log(f"Hint notes written into the Master Key's description ({len(result.hints.hints)} items, from "
+            log(f"Hint notes written into the Darksign's description ({len(result.hints.hints)} items, from "
                 f"{result.hints.seed_dir.name})")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))

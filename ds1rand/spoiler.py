@@ -128,6 +128,10 @@ def spoiler_text(preset: Preset, result: RunResult) -> str:
             f"Physiques: {len(a.physiques)} at {s.physiques:.0%}",
             f"NPC bodies: {len(a.npc_bodies)} at {s.npc_bodies:.0%}",
         ])
+    if preset.hints.enabled and result.hints is not None:
+        h = result.hints
+        lines += _section("Hint notes (Darksign description)", [f"Not written: {h.problem}"] if h.problem else
+                          [f"From {h.seed_dir.name}", *(f"{item}: {region}" for item, region in h.hints.items())])
     return "\n".join(lines) + "\n"
 
 

@@ -35,7 +35,8 @@ def test_template_is_a_ring_without_effects(session):
 
 def test_rings_are_randomized_except_pinned(session):
     results = run(session)
-    assert {r.ring_id for r in results} == {r for r in session.base.params["EquipParamAccessory"].rows if r} - DEFAULT_PINNED
+    # The Hornet Ring's SpEffect is used by the engine directly: it stays vanilla too.
+    assert {r.ring_id for r in results} ==         {r for r in session.base.params["EquipParamAccessory"].rows if r} - DEFAULT_PINNED - {117}
     for r in results:
         values = session.store.values("SpEffectParam", r.speffect_id)
         assert all(values[f] == v for f, v in r.effects.items())

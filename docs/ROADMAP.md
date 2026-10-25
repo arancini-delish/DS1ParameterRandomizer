@@ -181,6 +181,16 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - Weapon tier values are raised: Common 0.92, Uncommon 1.13, Rare 1.35, Legendary 1.6 (were 0.82 / 1.0 / 1.18 / 1.4). The base damage roll is widened to x0.65-1.9 so the higher tiers are reachable.
 - Body and face above 100% strength: characters created with body scales beyond -100..100 failed to join in Seamless Co-op. Body scales now stay within -100..100 and the face templates within vanilla extremes; NPC faces still use the full u8 range.
 
+### Fixes and additions (1.0.4)
+- **Fix: pinned rings stayed pinned in name only.** The ring run gave the ring feature its own copy of every SpEffect the ring shares with something else, pinned rings included, so pinned rings were repointed to copies. Events check the original IDs: New Londo's Abyss drop checks the Covenant of Artorias' SpEffect 2200, and the Darkmoon Seance and Sacrifice rings are checked the same way. With the copy, the drop killed the player.
+  - Now pinned rings and their SpEffects are left out of the run entirely.
+  - Rings whose SpEffect events check by ID (Darkmoon Blade and Cat covenant rings) are randomized in place, keeping the ID.
+  - Rings whose SpEffect the engine uses directly (Hornet Ring) stay vanilla.
+- **Hint notes** (`features/hints.py`, Extras tab, off by default):
+  - The Darksign's description lists the region of the Covenant of Artorias, Key to the Seal, Peculiar Doll, Broken Pendant, Orange Charred Ring, Darkmoon Seance Ring, Key to Depths, Large Ember and Very Large Ember.
+  - The regions come from the item randomizer's newest `random-seed-*/hintsheet.txt` whose `ItemLotParam.param` matches the installed item lots.
+  - 1.0.4 tried a new goods row ("Wanderer's Notes") in the starting classes' item slots. The written params were right, but the game did not grant it at character creation, so 1.0.5 uses an existing item's description: the Darksign, which every class starts with. The fog gate "way in" lines were dropped as inaccurate.
+
 ### Additions (1.0.3)
 - **Remove previous snapshot** (UI button beside Validate, `--clear-snapshots`; `alloc.write.forget_base`): deletes the `.ds1rand-base` / marker pair. If the file is still ds1rand's output, it is restored to the base first, so ds1rand's output never becomes a later run's base.
 - Weapons Standard preset: Common 0.33, Uncommon 0.35, Rare 0.24, Legendary 0.08 (was 0.4 / 0.35 / 0.2 / 0.05).

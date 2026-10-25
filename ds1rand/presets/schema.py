@@ -114,6 +114,11 @@ class AppearanceSettings:
 
 
 @dataclass
+class HintsSettings:
+    enabled: bool = False  # Darksign description hinting where key items are (needs the item randomizer's output)
+
+
+@dataclass
 class Preset:
     name: str = "Standard"
     seed: int | None = None  # None: pick one at random when running
@@ -124,6 +129,7 @@ class Preset:
     weapons: WeaponsSettings = field(default_factory=WeaponsSettings)
     armor: ArmorSettings = field(default_factory=ArmorSettings)
     appearance: AppearanceSettings = field(default_factory=AppearanceSettings)
+    hints: HintsSettings = field(default_factory=HintsSettings)
 
     def to_dict(self) -> dict:
         return {"version": VERSION, **asdict(self)}
@@ -136,7 +142,7 @@ class Preset:
         for key, settings_cls in (("rings", RingsSettings), ("spells", SpellsSettings),
                                   ("projectiles", ProjectilesSettings), ("enemies", EnemiesSettings),
                                   ("weapons", WeaponsSettings), ("armor", ArmorSettings),
-                                  ("appearance", AppearanceSettings)):
+                                  ("appearance", AppearanceSettings), ("hints", HintsSettings)):
             values = _known(settings_cls, data.get(key, {}))
             for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights"):
                 if name in values:

@@ -81,6 +81,7 @@ HUMAN_ROWS = 100000  # NpcParam rows below this are human characters (NPCs, inva
 @dataclass
 class EnemyConfig:
     tier_weights: tuple[float, float, float, float] = PRESETS["Standard"]
+    boss_tier_weights: tuple[float, float, float, float] | None = None  # bosses' own distribution (None: the same)
     groups: dict[str, bool] = field(default_factory=lambda: dict.fromkeys((*GROUPS, "speed"), True))
     categories: dict[str, bool] = field(default_factory=lambda: {"regular": True, "boss": False, "human": False})
     mark_strong: bool = False  # give Alert / Relentless enemies a glow (`MARKS`)
@@ -187,7 +188,10 @@ class _EnemyBuilder:
         return self.config.categories.get(enemy.category, False)
 
     def draw(self, enemy: EnemyType) -> EnemyResult:
-        tier = BehaviourTier(self.rng.choices(range(len(BehaviourTier)), weights=self.config.tier_weights)[0])
+        weights = self.config.tier_weights
+        if enemy.category == "boss" and self.config.boss_tier_weights is not None:
+            weights = self.config.boss_tier_weights
+        tier = BehaviourTier(self.rng.choices(range(len(BehaviourTier)), weights=weights)[0])
         low, high = TIER_RANGE[tier]
         result = EnemyResult(enemy.npc_id, enemy.model, enemy.category, tier)
         for group in (*GROUPS, "speed"):

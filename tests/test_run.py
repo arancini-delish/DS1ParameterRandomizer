@@ -52,3 +52,27 @@ def test_features_use_independent_random_streams(redirected_install, tmp_path):
         return [(r.weapon_id, r.tier, r.effects, {k: v for k, v in r.changes.items() if not k.startswith(("spEffectBehaviorId", "residentSpEffectId"))})
                 for r in result.weapons]
     assert weapons(both) == weapons(rings_only)
+
+
+def test_weapon_seed_changes_only_the_weapons(redirected_install, tmp_path):
+    """Two players sharing a seed but not a weapon seed: identical everything except weapon rows, the effect rows
+    weapons add (allocated last, so nothing else shifts) and weapon descriptions."""
+    from ds1rand.features.weapons import ON_HIT, WHILE_HELD
+
+    def changes(weapon_seed, name):
+        preset = Preset.from_dict(BUILTIN["Standard"].to_dict())
+        preset.seed = 3
+        preset.weapons.seed = weapon_seed
+        result = run(preset, redirected_install, out_dir=tmp_path / name, log=lambda _: None, spoiler=False)
+        changed = result.session.store.changes()
+        weapon_effects = {w.changes[f] for w in result.weapons for f in ON_HIT + WHILE_HELD if f in w.changes}
+        changed["SpEffectParam"] = {k: v for k, v in changed["SpEffectParam"].items() if k not in weapon_effects}
+        text = {k: v for k, v in result.session.text.items() if k[0] != "Weapon_long_desc"}
+        return changed, text, [(w.weapon_id, w.tier, w.changes.get("attackBasePhysics")) for w in result.weapons]
+    a, text_a, weapons_a = changes(101, "a")
+    b, text_b, weapons_b = changes(202, "b")
+    assert weapons_a != weapons_b
+    assert set(a) == set(b) and text_a == text_b
+    for param in a:
+        if param != "EquipParamWeapon":
+            assert a[param] == b[param], param

@@ -75,6 +75,7 @@ class EnemiesSettings:
     speed: bool = True
     poise: bool = True
     stamina: bool = True
+    boss_tier_weights: tuple[float, float, float, float] = ENEMY_PRESETS["Standard"]
     regular: bool = True
     bosses: bool = False
     humans: bool = False
@@ -92,6 +93,7 @@ class WeaponsSettings:
     element_chance: float = 0.15
     isolate_npcs: bool = True
     write_descriptions: bool = True
+    seed: int | None = None  # own seed for weapons only (players with different weapon seeds share everything else)
 
 
 @dataclass
@@ -144,7 +146,8 @@ class Preset:
                                   ("weapons", WeaponsSettings), ("armor", ArmorSettings),
                                   ("appearance", AppearanceSettings), ("hints", HintsSettings)):
             values = _known(settings_cls, data.get(key, {}))
-            for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights"):
+            for name in ("tier_weights", "player_weights", "enemy_weights", "environment_weights",
+                         "boss_tier_weights"):
                 if name in values:
                     values[name] = tuple(values[name])
             sections[key] = settings_cls(**values)
@@ -190,7 +193,7 @@ BUILTIN: dict[str, Preset] = {
                  projectiles=ProjectilesSettings(player_weights=PROJECTILE_PRESETS[name],
                                                  enemy_weights=ENEMY_PROJECTILE_PRESETS[name],
                                                  environment_weights=ENEMY_PROJECTILE_PRESETS[name]),
-                 enemies=EnemiesSettings(tier_weights=ENEMY_PRESETS[name]),
+                 enemies=EnemiesSettings(tier_weights=ENEMY_PRESETS[name], boss_tier_weights=ENEMY_PRESETS[name]),
                  weapons=WeaponsSettings(tier_weights=WEAPON_PRESETS[name]),
                  armor=ArmorSettings(tier_weights=ARMOR_PRESETS[name]))
     for name in RING_PRESETS

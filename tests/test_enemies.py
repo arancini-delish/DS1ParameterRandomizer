@@ -124,3 +124,11 @@ def test_strong_enemies_can_be_marked(session):
         assert effect["effectEndurance"] < 0 and effect["maxHpRate"] == 1.0 and effect["physicsAttackPowerRate"] == 1.0
         seen.add(r.tier)
     assert seen == {BehaviourTier.ALERT, BehaviourTier.RELENTLESS}
+
+
+def test_bosses_use_their_own_distribution(session):
+    results = run(session, tier_weights=(1, 0, 0, 0), boss_tier_weights=(0, 0, 0, 1),
+                  categories={"regular": True, "boss": True, "human": False})
+    bosses = [r for r in results if r.category == "boss"]
+    assert bosses and all(r.tier.name == "RELENTLESS" for r in bosses)
+    assert all(r.tier.name == "SLUGGISH" for r in results if r.category != "boss")

@@ -34,6 +34,8 @@ If you re-randomize the whole game with the other randomizers (for example after
 
 Play offline: modified params are not safe online.
 
+**Different weapons in co-op:** share the preset and seed as usual, then each player sets their own **Weapon seed** on the Weapons tab (`--weapon-seed` on the command line). Everything else stays identical; only the weapons differ. The params fingerprint will differ because of this; the other groups should still match.
+
 ### Co-op (Seamless Co-op)
 Every player must load exactly the same game files. Joining fails in confusing ways otherwise: for example, a guest spawns next to the host but never properly joins.
 

@@ -48,7 +48,8 @@ def spoiler_text(preset: Preset, result: RunResult) -> str:
     lines = [
         "ds1rand spoiler log",
         f"Generated {datetime.now():%Y-%m-%d %H:%M}",
-        f"Seed: {result.seed}",
+        f"Seed: {result.seed}" + (f" (weapon seed {preset.weapons.seed})"
+                                  if preset.weapons.enabled and preset.weapons.seed is not None else ""),
         f"Preset: {preset.name}",
         f"Share string: {preset.to_share_string()}",
         f"GameParam base: {result.gameparam_base}; item text base: {result.text_base}",

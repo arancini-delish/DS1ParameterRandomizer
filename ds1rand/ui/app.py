@@ -365,6 +365,12 @@ class EnemiesTab(QtWidgets.QWidget):
         self.distribution.changed.connect(self.changed)
         tiers_layout.addWidget(self.distribution)
         options.addWidget(tiers)
+        bosses = QtWidgets.QGroupBox("Boss behaviour distribution (with bosses on)")
+        bosses_layout = QtWidgets.QVBoxLayout(bosses)
+        self.boss_distribution = DistributionEditor([t.name.title() for t in BehaviourTier], ENEMY_PRESETS)
+        self.boss_distribution.changed.connect(self.changed)
+        bosses_layout.addWidget(self.boss_distribution)
+        options.addWidget(bosses)
         self.boxes = {}
         for title, items in (("Randomize", self.GROUPS), ("Enemies", self.CATEGORIES)):
             group = QtWidgets.QGroupBox(title)
@@ -391,14 +397,16 @@ class EnemiesTab(QtWidgets.QWidget):
 
     def settings(self) -> EnemiesSettings:
         return EnemiesSettings(enabled=self.enabled.isChecked(), tier_weights=self.distribution.values(),
+                               boss_tier_weights=self.boss_distribution.values(),
                                **{key: box.isChecked() for key, box in self.boxes.items()})
 
     def apply(self, settings: EnemiesSettings) -> None:
-        widgets = [self.enabled, self.distribution, *self.boxes.values()]
+        widgets = [self.enabled, self.distribution, self.boss_distribution, *self.boxes.values()]
         for widget in widgets:
             widget.blockSignals(True)
         self.enabled.setChecked(settings.enabled)
         self.distribution.set_values(settings.tier_weights)
+        self.boss_distribution.set_values(settings.boss_tier_weights)
         for key, box in self.boxes.items():
             box.setChecked(getattr(settings, key))
         for widget in widgets:
@@ -448,6 +456,12 @@ class WeaponsTab(QtWidgets.QWidget):
         chances.addRow("Chance of another melee weapon's moveset (and its stats)", self.moveset_chance)
         chances.addRow("Chance of each added effect (on hit, while held)", self.effect_chance)
         chances.addRow("Chance of part of the damage becoming elemental", self.element_chance)
+        self.seed = QtWidgets.QLineEdit(placeholderText="blank: the main seed")
+        self.seed.setValidator(QtGui.QIntValidator(0, 2**31 - 1, self))
+        self.seed.setToolTip("Players sharing everything else can each use their own weapon seed: only the weapons "
+                             "differ between them.")
+        self.seed.textChanged.connect(self.changed)
+        chances.addRow("Weapon seed (weapons only)", self.seed)
         right_layout.addLayout(chances)
         options.addWidget(right)
         layout.addWidget(self.options)
@@ -477,11 +491,12 @@ class WeaponsTab(QtWidgets.QWidget):
             moveset_chance=self.moveset_chance.value() / 100, effect_chance=self.effect_chance.value() / 100,
             element_chance=self.element_chance.value() / 100, isolate_npcs=self.isolate_npcs.isChecked(),
             write_descriptions=self.write_descriptions.isChecked(),
+            seed=int(self.seed.text()) if self.seed.text() else None,
         )
 
     def apply(self, settings: WeaponsSettings) -> None:
         widgets = [self.enabled, self.distribution, self.weapons, self.shields, self.isolate_npcs,
-                   self.write_descriptions, self.moveset_chance, self.effect_chance, self.element_chance]
+                   self.write_descriptions, self.moveset_chance, self.effect_chance, self.element_chance, self.seed]
         for widget in widgets:
             widget.blockSignals(True)
         self.enabled.setChecked(settings.enabled)
@@ -493,6 +508,7 @@ class WeaponsTab(QtWidgets.QWidget):
         self.moveset_chance.setValue(round(settings.moveset_chance * 100))
         self.effect_chance.setValue(round(settings.effect_chance * 100))
         self.element_chance.setValue(round(settings.element_chance * 100))
+        self.seed.setText("" if settings.seed is None else str(settings.seed))
         for widget in widgets:
             widget.blockSignals(False)
         self.options.setEnabled(settings.enabled)
@@ -934,7 +950,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.projectiles_tab.enabled.isChecked() and not self.projectiles_tab.is_valid():
             QtWidgets.QMessageBox.warning(self, "Invalid settings", "Projectile tier weights must not all be 0.")
             return
-        if self.enemies_tab.enabled.isChecked() and not self.enemies_tab.distribution.is_valid():
+        if self.enemies_tab.enabled.isChecked() and not (self.enemies_tab.distribution.is_valid()
+                                                         and self.enemies_tab.boss_distribution.is_valid()):
             QtWidgets.QMessageBox.warning(self, "Invalid settings", "Enemy behaviour tier weights must not all be 0.")
             return
         if self.weapons_tab.enabled.isChecked() and not self.weapons_tab.distribution.is_valid():
@@ -1015,4 +1032,10 @@ def main() -> int:
     window.show()
     if "--smoke" in sys.argv[1:]:  # packaging check: start, show the window, quit
         QtCore.QTimer.singleShot(1500, app.quit)
-    return app.exec()
+    code = app.exec()
+    # Destroy the window while the application still exists: left to interpreter shutdown, Python may delete widgets
+    # after Qt's teardown and crash on exit (intermittent 0xC0000409 / 0xC0000005).
+    window.deleteLater()
+    QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.Type.DeferredDelete)
+    del window
+    return code

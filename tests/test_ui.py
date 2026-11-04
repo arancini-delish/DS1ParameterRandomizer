@@ -117,3 +117,16 @@ def test_audit_tab_browses_a_session(window, redirected_install):
     assert tab.rows.count() >= 1
     tab.rows.setCurrentRow(0)
     assert "Soul Arrow" in tab.details.toPlainText() and "Referenced by" in tab.details.toPlainText()
+
+
+def test_weapon_seed_and_boss_distribution(window):
+    window.preset_combo.setCurrentText("Standard")
+    window.weapons_tab.seed.setText("4242")
+    window.enemies_tab.boss_distribution.set_values((0.0, 0.0, 0.5, 0.5))
+    window.enemies_tab.boss_distribution.changed.emit()
+    preset = window.current_preset()
+    assert preset.weapons.seed == 4242 and preset.enemies.boss_tier_weights == (0.0, 0.0, 0.5, 0.5)
+    window.apply_preset(Preset.from_share_string(preset.to_share_string()))
+    assert window.weapons_tab.seed.text() == "4242"
+    window.weapons_tab.seed.setText("")
+    assert window.current_preset().weapons.seed is None

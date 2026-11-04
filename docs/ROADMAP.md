@@ -181,6 +181,12 @@ Edge extractors, each tagged with source + semantic role (e.g. `bullet.hitBullet
 - Weapon tier values are raised: Common 0.92, Uncommon 1.13, Rare 1.35, Legendary 1.6 (were 0.82 / 1.0 / 1.18 / 1.4). The base damage roll is widened to x0.65-1.9 so the higher tiers are reachable.
 - Body and face above 100% strength: characters created with body scales beyond -100..100 failed to join in Seamless Co-op. Body scales now stay within -100..100 and the face templates within vanilla extremes; NPC faces still use the full u8 range.
 
+### Additions (1.0.6)
+- **Weapon seed** (Weapons tab, `--weapon-seed`, preset `weapons.seed`): weapons get their own random stream.
+  - Players sharing every other setting get identical files apart from the weapon rows, the effect rows weapons add, and weapon descriptions. Different weapon damage between players works fine in co-op.
+  - Weapons now run last, so the rows they add take the last free IDs and no other feature's IDs shift. As a result, armor effect rows get different IDs than in 1.0.5 for the same seed (same content).
+- **Boss behaviour distribution** (`enemies.boss_tier_weights`): bosses draw their tier from their own distribution when bosses are on. Built-ins use the same values as the regular one.
+
 ### Fixes and additions (1.0.4)
 - **Fix: pinned rings stayed pinned in name only.** The ring run gave the ring feature its own copy of every SpEffect the ring shares with something else, pinned rings included, so pinned rings were repointed to copies. Events check the original IDs: New Londo's Abyss drop checks the Covenant of Artorias' SpEffect 2200, and the Darkmoon Seance and Sacrifice rings are checked the same way. With the copy, the drop killed the player.
   - Now pinned rings and their SpEffects are left out of the run entirely.

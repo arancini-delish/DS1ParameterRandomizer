@@ -51,6 +51,8 @@ def main() -> None:
     parser.add_argument("--fingerprint", action="store_true",
                         help="Print the game files fingerprint of the install (compare with co-op partners) and exit")
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--weapon-seed", type=int,
+                        help="Own seed for weapons only: players sharing every other setting get different weapons")
     parser.add_argument("--in-place", action="store_true", help="Write into the game folder")
     parser.add_argument("--game-dir")
     parser.add_argument("--print-share", action="store_true", help="Print the share string of the run")
@@ -80,6 +82,8 @@ def main() -> None:
         preset.appearance.enabled = False
     if args.seed is not None:
         preset.seed = args.seed
+    if args.weapon_seed is not None:
+        preset.weapons.seed = args.weapon_seed
 
     install = GameInstall(Path(args.game_dir)) if args.game_dir else GameInstall.default()
     if args.clear_snapshots:

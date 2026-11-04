@@ -124,6 +124,7 @@ def run(
         settings = preset.enemies
         config = EnemyConfig(
             tier_weights=tuple(settings.tier_weights),
+            boss_tier_weights=tuple(settings.boss_tier_weights),
             groups={group: getattr(settings, group) for group in (*GROUPS, "speed")},
             categories={"regular": settings.regular, "boss": settings.bosses, "human": settings.humans},
             mark_strong=settings.mark_strong,
@@ -131,15 +132,6 @@ def run(
         result.enemies = randomize_enemies(session, config, random.Random(f"{seed}-enemies"))
         log(f"Enemy behaviour: {len(result.enemies)} enemy types randomized "
             f"({sum(bool(r.speed) for r in result.enemies)} with new movement)")
-
-    if preset.weapons.enabled:
-        settings = preset.weapons
-        config = WeaponConfig(tier_weights=tuple(settings.tier_weights), **{f: getattr(settings, f) for f in (
-            "weapons", "shields", "moveset_chance", "effect_chance", "element_chance", "isolate_npcs",
-            "write_descriptions")})
-        result.weapons = randomize_weapons(session, config, random.Random(f"{seed}-weapons"))
-        log(f"Weapons: {len(result.weapons)} randomized ({sum(r.shield for r in result.weapons)} shields, "
-            f"{sum(bool(r.moveset_from) for r in result.weapons)} new movesets)")
 
     if preset.armor.enabled:
         settings = preset.armor
@@ -163,6 +155,20 @@ def run(
         else:
             log(f"Hint notes written into the Darksign's description ({len(result.hints.hints)} items, from "
                 f"{result.hints.seed_dir.name})")
+
+    # Weapons run last: the rows they add (effects, NPC copies) take the next free IDs, so with a weapon seed of
+    # their own the other features' rows keep the same IDs as for anyone sharing the main seed.
+    if preset.weapons.enabled:
+        settings = preset.weapons
+        config = WeaponConfig(tier_weights=tuple(settings.tier_weights), **{f: getattr(settings, f) for f in (
+            "weapons", "shields", "moveset_chance", "effect_chance", "element_chance", "isolate_npcs",
+            "write_descriptions")})
+        # A weapon seed gives weapons their own stream: everything else stays as the shared seed makes it.
+        weapon_seed = settings.seed if settings.seed is not None else seed
+        result.weapons = randomize_weapons(session, config, random.Random(f"{weapon_seed}-weapons"))
+        log((f"Weapon seed {settings.seed}. " if settings.seed is not None else "")
+            + f"Weapons: {len(result.weapons)} randomized ({sum(r.shield for r in result.weapons)} shields, "
+            f"{sum(bool(r.moveset_from) for r in result.weapons)} new movesets)")
 
     result.written = list(session.write({"seed": seed, "preset": preset.to_dict()}, out_dir=out_dir))
     result.target = out_dir if out_dir is not None else install.root
